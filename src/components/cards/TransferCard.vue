@@ -210,56 +210,16 @@ const receiverLikesCount = ref<string | null>(null)
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
 
-// The actual sender — for decoded txs, use args.from if available (the UP that initiated)
-const senderAddress = computed(() => {
-  const args = props.tx.args
-  if (args) {
-    const from = args.find(a => a.name === 'from')
-    if (from && typeof from.value === 'string') return from.value
-  }
-  return props.tx.from
-})
+// ─── Helper: get a named arg value ───
+function getArg(name: string): unknown {
+  return props.tx.args?.find(a => a.name === name)?.value
+}
+function getArgString(name: string): string {
+  const v = getArg(name)
+  return typeof v === 'string' ? v : ''
+}
 
-const fromIdentity = computed(() => getIdentity(senderAddress.value))
-
-const senderIsAsset = computed(() => {
-  const identity = fromIdentity.value
-  if (!identity) return false
-  return identity.isLSP7 === true ||
-    identity.__gqltype === 'Asset' ||
-    identity.standard?.includes('LSP7') ||
-    identity.standard?.includes('LSP8') ||
-    !!identity.lsp4TokenName
-})
-
-const senderAssetName = computed(() => {
-  const identity = fromIdentity.value
-  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
-  if (identity?.lsp4TokenName) return identity.lsp4TokenName
-  if (identity?.name) return identity.name
-  return 'Token'
-})
-
-const senderIconUrl = computed(() => {
-  const identity = fromIdentity.value
-  const icons = identity?.icons
-  if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-    return optimizeImageUrl(src, 24) // w-6 = 24px
-  }
-  return ''
-})
-
-const fromProfileUrl = computed(() => {
-  const images = fromIdentity.value?.profileImages
-  if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
-  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-  return optimizeImageUrl(src, 32)
-})
-
-// Determine transfer type
+// ─── Transfer type from decoded standard ───
 const transferType = computed(() => {
   const standard = props.tx.standard?.toLowerCase() ?? ''
   if (standard.includes('lsp8') || standard.includes('identifiabledigitalasset')) return 'lsp8'
@@ -267,179 +227,168 @@ const transferType = computed(() => {
   return 'lyx'
 })
 
-// Extract receiver address from args or fallback to tx.to
-const receiver = computed(() => {
-  const args = props.tx.args
-  if (args) {
-    const to = args.find(a => a.name === 'to')
-    if (to && typeof to.value === 'string') return to.value
-  }
-  return props.tx.to
+// ─── Sender: args.from (for token transfers) or tx.from (for LYX) ───
+const senderAddress = computed(() => getArgString('from') || props.tx.from)
+const fromIdentity = computed(() => getIdentity(senderAddress.value))
+
+const senderIsAsset = computed(() => {
+  const identity = fromIdentity.value
+  if (!identity) return false
+  return identity.__gqltype === 'Asset' || identity.isLSP7 === true ||
+    !!identity.standard?.includes('LSP7') || !!identity.standard?.includes('LSP8') ||
+    !!identity.lsp4TokenName
 })
 
+const senderAssetName = computed(() => {
+  const identity = fromIdentity.value
+  return identity?.lsp4TokenSymbol || identity?.lsp4TokenName || identity?.name || 'Token'
+})
+
+const senderIconUrl = computed(() => {
+  const icons = fromIdentity.value?.icons
+  if (!icons?.length) return ''
+  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
+})
+
+const fromProfileUrl = computed(() => {
+  const images = fromIdentity.value?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
+})
+
+// ─── Receiver: args.to (for token transfers) or tx.to (for LYX) ───
+const receiver = computed(() => getArgString('to') || props.tx.to)
 const toIdentity = computed(() => getIdentity(receiver.value))
 
-// Check if receiver is an asset (LSP7/LSP8) rather than a profile
 const receiverIsAsset = computed(() => {
   const identity = toIdentity.value
   if (!identity) return false
-  return identity.isLSP7 === true ||
-    identity.__gqltype === 'Asset' ||
-    identity.standard?.includes('LSP7') ||
-    identity.standard?.includes('LSP8') ||
+  return identity.__gqltype === 'Asset' || identity.isLSP7 === true ||
+    !!identity.standard?.includes('LSP7') || !!identity.standard?.includes('LSP8') ||
     !!identity.lsp4TokenName
+})
+
+const receiverIsProfile = computed(() => {
+  const identity = toIdentity.value
+  if (!identity) return false
+  return !!(identity.profileImages?.length) || identity.__gqltype === 'Profile'
 })
 
 const receiverAssetName = computed(() => {
   const identity = toIdentity.value
-  if (identity?.lsp4TokenName) return identity.lsp4TokenName
-  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
-  if (identity?.name) return identity.name
-  return ''
+  return identity?.lsp4TokenName || identity?.lsp4TokenSymbol || identity?.name || ''
 })
 
 const receiverIconUrl = computed(() => {
-  const identity = toIdentity.value
-  const icons = identity?.icons
-  if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-    return optimizeImageUrl(src, 24) // w-6 = 24px
-  }
-  return ''
+  const icons = toIdentity.value?.icons
+  if (!icons?.length) return ''
+  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
 
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-  return optimizeImageUrl(src, 32)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
-// Show NFT preview card when receiver is an asset/NFT (not a profile)
-// Decision is based on the RECEIVER, not the token being sent
+// ─── Token contract: tx.to is always the token contract (API unwraps KM/UP layers) ───
 const LIKES_TOKEN = '0x403bfd53617555295347e0f7725cfda480ab801e'
 
-const receiverIsProfile = computed(() => {
-  const identity = toIdentity.value
-  if (!identity) return false
-  // Has profile images or __gqltype is Profile → it's a Universal Profile
-  if (identity.profileImages?.length) return true
-  if (identity.__gqltype === 'Profile') return true
-  return false
+const tokenContractAddress = computed(() => props.tx.to)
+
+const tokenContractIdentity = computed(() => {
+  if (transferType.value === 'lyx') return undefined
+  return getIdentity(tokenContractAddress.value)
 })
 
+const tokenDecimals = computed(() => tokenContractIdentity.value?.decimals ?? 18)
+
+const isLikesTransfer = computed(() =>
+  tokenContractAddress.value?.toLowerCase() === LIKES_TOKEN ||
+  tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
+)
+
+// ─── NFT preview: show when receiver is an asset, not a profile ───
 const isLikeAction = computed(() => {
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
-  // If receiver is a profile → always normal transfer
   if (receiverIsProfile.value) return false
-  // If receiver is a known asset via resolve API → NFT card
   if (receiverIsAsset.value) return true
-  // If Envio found token/asset data for the receiver → NFT card
   if (envioMomentName.value || envioCollectionName.value) return true
   return false
 })
 
-// For any token transfer: check receiver via Envio to determine if it's an asset
+// Fetch Envio data for receiver (determines if it's an asset + gets moment details)
 let envioFetched = false
 watch(() => receiver.value, (addr) => {
   if (addr && !envioFetched && (transferType.value === 'lsp7' || transferType.value === 'lyx')) {
     envioFetched = true
-
-    // Check Envio for asset/token data on the receiver
     fetchTokenName(addr).then(meta => {
       if (meta) {
         if (meta.name) envioMomentName.value = meta.name
         if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
       }
     })
-
-    // Fetch LIKES balance on the receiver
     fetchLikesBalance(addr).then(count => {
       if (count) receiverLikesCount.value = count
     })
   }
 }, { immediate: true })
 
-const isLikesTransfer = computed(() => {
-  return props.tx.to?.toLowerCase() === LIKES_TOKEN ||
-    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
-})
-
 const isForeverMoments = computed(() => {
   if (envioCollectionName.value === 'Forever Moments') return true
   const identity = toIdentity.value
-  if (!identity) return false
-  return identity.lsp4TokenName === 'Forever Moments' ||
-    (identity.__gqltype === 'Asset' && !identity.isLSP7 &&
-     !identity.standard?.includes('LSP7') && !identity.standard?.includes('LSP8'))
+  return identity?.lsp4TokenName === 'Forever Moments' || false
 })
 
-const likedAssetUrl = computed(() => {
-  if (isForeverMoments.value) {
-    return `https://www.forevermoments.life/moments/${receiver.value}`
-  }
-  return `https://universaleverything.io/asset/${receiver.value}`
-})
+const likedAssetUrl = computed(() =>
+  isForeverMoments.value
+    ? `https://www.forevermoments.life/moments/${receiver.value}`
+    : `https://universaleverything.io/asset/${receiver.value}`
+)
 
-// NFT image for the liked asset (use images[] for artwork, icons[] as fallback)
+// ─── NFT image for liked asset ───
 const receiverNftImageUrl = computed(() => {
   const identity = toIdentity.value
-  // Prefer images (artwork) over icons
   const images = identity?.images
   if (images?.length) {
     const sorted = [...images].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
-    return optimizeImageUrl(src, 140) // w-[140px]
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
   }
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
-    return optimizeImageUrl(src, 140)
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
   }
   return ''
 })
 
+const receiverMomentName = computed(() => toIdentity.value?.name || envioMomentName.value || '')
 
-// Individual moment/token name (from Envio 'name' field)
-const receiverMomentName = computed(() => {
-  return toIdentity.value?.name || envioMomentName.value || ''
-})
-
-// Collection name (from Envio 'lsp4TokenName' — e.g. "Forever Moments")
-// Only show if different from the moment name
 const receiverCollectionName = computed(() => {
   const collection = toIdentity.value?.lsp4TokenName || envioCollectionName.value || ''
   const moment = receiverMomentName.value
-  // Don't show collection name if it's the same as the moment name
-  if (collection && moment && collection !== moment) return collection
-  return ''
+  return (collection && moment && collection !== moment) ? collection : ''
 })
 
-const receiverAssetSymbol = computed(() => {
-  return toIdentity.value?.lsp4TokenSymbol || ''
-})
+const receiverAssetSymbol = computed(() => toIdentity.value?.lsp4TokenSymbol || '')
 
-// Creator address from lsp4Creators
+// ─── Creator info ───
 const receiverCreatorAddress = computed(() => {
   const identity = toIdentity.value
   const creators = (identity as any)?.lsp4Creators
-  if (creators?.length) {
-    return creators[0].profile_id || creators[0].address || ''
-  }
+  if (creators?.length) return creators[0].profile_id || creators[0].address || ''
   return identity?.owner_id || ''
 })
 
 const creatorIdentity = computed(() => {
   const addr = receiverCreatorAddress.value
   if (!addr) return undefined
-  // Queue resolution if not yet resolved
   const identity = getIdentity(addr)
-  if (!identity) {
-    queueResolve(props.chainId, [addr])
-  }
+  if (!identity) queueResolve(props.chainId, [addr])
   return identity
 })
 
@@ -447,129 +396,57 @@ const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-  return optimizeImageUrl(src, 24)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
 
-// Format amounts
+// ─── Amount formatting ───
 const formattedAmount = computed(() => {
-  if (transferType.value === 'lyx') {
-    return formatLYX(props.tx.value || '0')
-  }
+  if (transferType.value === 'lyx') return formatLYX(props.tx.value || '0')
   return ''
 })
 
-// Extract amount from Transfer event log (most reliable, especially for batch txs)
-function getAmountFromTransferLog(): string | null {
-  const logs = props.tx.logs
-  if (!logs?.length) return null
-  const transferLog = logs.find((l: any) =>
-    l.eventName === 'Transfer' && l.args?.some((a: any) => a.name === 'amount')
-  )
-  if (!transferLog?.args) return null
-  const amountArg = transferLog.args.find((a: any) => a.name === 'amount')
-  if (!amountArg) return null
-  try {
-    return String(amountArg.value)
-  } catch {
-    return null
-  }
-}
-
+// Token amount: directly from args.amount (API pre-decodes it)
 const tokenAmount = computed(() => {
-  const args = props.tx.args
-  if (!args) return ''
-  // Use Transfer event log amount (always correct, even for batch txs)
-  const rawAmountValue = getAmountFromTransferLog()
-  if (rawAmountValue != null) {
-    try {
-      let rawValue = rawAmountValue
-      // Handle array of bytes (e.g. [1,1,1,...] or {0:1, 1:2, ...}) — convert to hex string
-      if (Array.isArray(rawValue)) {
-        const hex = '0x' + rawValue.map((b: number) => b.toString(16).padStart(2, '0')).join('')
-        rawValue = hex
-      } else if (typeof rawValue === 'object' && rawValue !== null) {
-        // Object with numeric keys (e.g. {"0": 1, "1": 2, ...})
-        const keys = Object.keys(rawValue).sort((a, b) => Number(a) - Number(b))
-        if (keys.length > 0 && keys.every(k => !isNaN(Number(k)))) {
-          const hex = '0x' + keys.map(k => (rawValue as unknown as Record<string, number>)[k].toString(16).padStart(2, '0')).join('')
-          rawValue = hex
-        }
-      }
-      const val = BigInt(String(rawValue))
-      const dec = BigInt(tokenDecimals.value)
-      if (dec === 0n) {
-        const s = val.toString()
-        // Abbreviate very large numbers
-        if (s.length > 12) {
-          const exp = s.length - 1
-          return `${s[0]}.${s.slice(1, 4)}e${exp}`
-        }
-        // Add thousand separators for medium numbers
-        if (s.length > 3) return Number(val).toLocaleString('en-US')
-        return s
-      }
-      const divisor = 10n ** dec
-      const whole = val / divisor
-      const frac = val % divisor
-      if (frac === 0n) return whole.toString()
-      const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
-      return `${whole}.${fracStr}`
-    } catch {
-      return String(rawAmountValue).length > 30 ? '' : String(rawAmountValue)
+  const rawAmount = getArg('amount')
+  if (rawAmount == null) return ''
+  try {
+    const val = BigInt(String(rawAmount))
+    const dec = BigInt(tokenDecimals.value)
+    if (dec === 0n) {
+      const s = val.toString()
+      if (s.length > 12) return `${s[0]}.${s.slice(1, 4)}e${s.length - 1}`
+      if (s.length > 3) return Number(val).toLocaleString('en-US')
+      return s
     }
+    const divisor = 10n ** dec
+    const whole = val / divisor
+    const frac = val % divisor
+    if (frac === 0n) return whole.toString()
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+    return `${whole}.${fracStr}`
+  } catch {
+    return String(rawAmount).length > 30 ? '' : String(rawAmount)
   }
-  return ''
 })
 
-// Token contract identity (tx.to is the token contract for LSP7/LSP8)
-// Token contract address: prefer Transfer event log emitter (correct for wrapped/batch txs)
-const tokenContractAddress = computed(() => {
-  const logs = props.tx.logs
-  if (logs?.length) {
-    const transferLog = logs.find((l: any) =>
-      l.eventName === 'Transfer' && l.args?.some((a: any) => a.name === 'amount')
-    )
-    if (transferLog?.address) return transferLog.address
-  }
-  return props.tx.to
-})
-
-const tokenContractIdentity = computed(() => {
-  if (transferType.value === 'lyx') return undefined
-  return getIdentity(tokenContractAddress.value)
-})
-
-const tokenDecimals = computed(() => {
-  return tokenContractIdentity.value?.decimals ?? 18
-})
-
-
-// Display name: use symbol for compact display
+// ─── Token display ───
 const tokenDisplayName = computed(() => {
   const identity = tokenContractIdentity.value
-  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
-  if (identity?.lsp4TokenName) return identity.lsp4TokenName
-  if (identity?.name) return identity.name
-  if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
-  return transferType.value === 'lsp8' ? 'NFT' : 'Token'
+  return identity?.lsp4TokenSymbol || identity?.lsp4TokenName || identity?.name ||
+    (transferType.value === 'lsp8' ? 'NFT' : 'Token')
 })
 
 const tokenIconUrl = computed(() => {
   const identity = tokenContractIdentity.value
-  // Token assets use 'icons' not 'profileImages'
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-    return optimizeImageUrl(src, 16) // w-4 = 16px
+    return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
   }
-  // Fallback to profileImages
   const images = identity?.profileImages
   if (images?.length) {
     const sorted = [...images].sort((a, b) => a.width - b.width)
-    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-    return optimizeImageUrl(src, 16)
+    return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
   }
   return ''
 })

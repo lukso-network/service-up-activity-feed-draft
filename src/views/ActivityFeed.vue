@@ -109,14 +109,7 @@ watch(transactions, (txs) => {
         }
       }
     }
-    // Token contract from Transfer event log (may differ from tx.to for wrapped txs)
-    if (tx.logs) {
-      for (const log of tx.logs as any[]) {
-        if (log.eventName === 'Transfer' && log.address) {
-          addresses.add(log.address)
-        }
-      }
-    }
+    // Note: tx.to is always the token contract (API unwraps KM/UP layers)
   }
   if (addresses.size > 0) {
     queueResolve(chainId.value, [...addresses])

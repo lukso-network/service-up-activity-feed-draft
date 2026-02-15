@@ -54,7 +54,8 @@ const isUnfollow = computed(() => {
 const targetAddress = computed(() => {
   const args = props.tx.args
   if (args) {
-    const addr = args.find(a => a.type === 'address')
+    // For follow/unfollow: use the 'addr' arg (the profile being followed)
+    const addr = args.find(a => a.name === 'addr')
     if (addr && typeof addr.value === 'string') return addr.value
   }
   return props.tx.to
