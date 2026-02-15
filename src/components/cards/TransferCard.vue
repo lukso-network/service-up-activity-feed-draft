@@ -105,6 +105,7 @@
           class="block"
         >
           <lukso-profile
+            :profile-url="getBatchProfileUrl(r.address)"
             :profile-address="r.address"
             has-identicon
             size="x-small"
@@ -536,6 +537,15 @@ const batchRecipients = computed(() => {
 // First 5 recipients for preview icons
 const batchPreviewRecipients = computed(() => batchRecipients.value.slice(0, 5))
 const batchHasMore = computed(() => batchRecipients.value.length > 5)
+
+// Get profile image URL for a batch recipient
+function getBatchProfileUrl(address: string): string {
+  const identity = getIdentity(address)
+  const images = identity?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
+}
 
 const toIdentity = computed(() => getIdentity(receiver.value))
 

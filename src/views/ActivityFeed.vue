@@ -11,11 +11,6 @@
       </span>
     </div>
 
-    <!-- Title -->
-    <div class="px-4 py-3">
-      <h1 class="text-lg font-bold text-neutral-800 dark:text-neutral-200">{{ pageTitle }}</h1>
-    </div>
-
     <ErrorState v-if="error" :message="error" @retry="load" />
 
     <LoadingSkeleton v-else-if="loading" />
