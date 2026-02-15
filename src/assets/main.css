@@ -8,6 +8,11 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
+  * {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
   }
