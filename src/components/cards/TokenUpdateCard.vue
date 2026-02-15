@@ -95,6 +95,7 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
+import { autoDecodeTokenId } from '../../lib/tokenId'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TxDetails from '../shared/TxDetails.vue'
@@ -122,31 +123,16 @@ const actorAddress = computed(() => {
 const tokenAddress = computed(() => props.tx.to)
 
 // ─── Token ID decoding ───
-// LSP8 tokenId is bytes32. Format 0 = uint256, 1 = string, 2 = address, 3 = bytes32, 4 = unique hash
 const rawTokenId = computed(() => {
   const arg = props.tx.args?.find(a => a.name === 'tokenId')
   return arg?.value ? String(arg.value) : null
 })
 
 const decodedTokenId = computed(() => {
-  const id = rawTokenId.value
-  if (!id) return ''
-  // Try to decode as uint256 (most common: format 0)
-  try {
-    const num = BigInt(id)
-    if (num <= 999999n) return `#${num.toString()}`
-    // Large number — could be hash or address
-    // Check if it looks like a padded address (format 2): 12 leading zero bytes + 20 byte address
-    if (id.startsWith('0x000000000000000000000000') && id.length === 66) {
-      const addr = '0x' + id.slice(26)
-      if (addr !== '0x0000000000000000000000000000000000000000') {
-        return shortenAddress(addr)
-      }
-    }
-    return `#${num.toString()}`
-  } catch {
-    return id.slice(0, 10) + '...'
-  }
+  if (!rawTokenId.value) return ''
+  // TODO: when we have LSP8TokenIdFormat from the contract, pass it to decodeTokenId()
+  // For now, auto-detect works for most cases
+  return autoDecodeTokenId(rawTokenId.value).display
 })
 
 // ─── Per-token metadata (from children[0].info.value) ───
