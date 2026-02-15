@@ -11,6 +11,11 @@
       </span>
     </div>
 
+    <!-- Title -->
+    <div class="px-4 py-3">
+      <h1 class="text-lg font-bold text-neutral-800 dark:text-neutral-200">{{ pageTitle }}</h1>
+    </div>
+
     <ErrorState v-if="error" :message="error" @retry="load" />
 
     <LoadingSkeleton v-else-if="loading" />
@@ -29,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useActivity } from '../composables/useActivity'
 import { useAddressResolver } from '../composables/useAddressResolver'
@@ -57,6 +62,19 @@ const lastVisibleCount = ref(0)
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 const devMode = computed(() => route.query.devmode !== undefined)
+
+// Title: "UP Activity Feed" or "UP Activity Feed for @user#1234"
+const pageTitle = computed(() => {
+  if (!address.value) return 'UP Activity Feed'
+  const name = profile.value?.name
+  const hash = address.value.slice(2, 6).toUpperCase()
+  if (name) return `UP Activity Feed for @${name}#${hash}`
+  return `UP Activity Feed for ${address.value.slice(0, 6)}...${address.value.slice(-4)}`
+})
+
+watchEffect(() => {
+  document.title = pageTitle.value
+})
 
 function txFilter(tx: Transaction): boolean {
   if (tx.status === 0) return false
