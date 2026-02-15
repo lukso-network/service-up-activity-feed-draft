@@ -58,7 +58,10 @@
             {{ receiverAssetFullName }}
           </span>
           <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ receiverAssetSymbol || receiverAssetName || shortenAddress(receiver) }}
+            {{ receiverAssetSymbol || receiverAssetName || 'NFT' }}
+          </span>
+          <span v-if="!receiverAssetSymbol && !receiverAssetName" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+            {{ shortenAddress(receiver) }}
           </span>
           <!-- Creator info -->
           <div v-if="receiverCreatorAddress" class="mt-1">
