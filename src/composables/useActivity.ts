@@ -17,9 +17,14 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
     try {
       const res = await fetchActivity(chainId.value, address.value)
       transactions.value = res.data.sort((a, b) => {
-        const blockA = parseInt(a.blockNumber) || 0
-        const blockB = parseInt(b.blockNumber) || 0
-        return blockB - blockA
+        // Sort by blockTimestamp (actual tx time), newest first
+        const tsA = a.blockTimestamp || 0
+        const tsB = b.blockTimestamp || 0
+        if (tsB !== tsA) return tsB - tsA
+        // Same timestamp: sort by transactionIndex descending
+        const idxA = a.transactionIndex || 0
+        const idxB = b.transactionIndex || 0
+        return idxB - idxA
       })
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
@@ -40,7 +45,13 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      transactions.value = [...transactions.value, ...res.data]
+      const sorted = res.data.sort((a, b) => {
+        const tsA = a.blockTimestamp || 0
+        const tsB = b.blockTimestamp || 0
+        if (tsB !== tsA) return tsB - tsA
+        return (b.transactionIndex || 0) - (a.transactionIndex || 0)
+      })
+      transactions.value = [...transactions.value, ...sorted]
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
     } catch (e) {
