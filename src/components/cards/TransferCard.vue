@@ -333,6 +333,7 @@ import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import NftPreview from '../shared/NftPreview.vue'
 import FmMomentPreview from '../shared/FmMomentPreview.vue'
+import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION } from '../../lib/events'
 
 const props = defineProps<{
   tx: Transaction
@@ -577,8 +578,6 @@ const toProfileUrl = computed(() => {
 })
 
 // ─── Token contract: from Transfer event (emitted by the actual token contract) ───
-import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION } from '../../lib/events'
-
 const tokenContractAddress = computed(() => {
   const logs = props.tx.logs
   if (logs?.length) {
