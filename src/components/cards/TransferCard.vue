@@ -479,9 +479,8 @@ function getAmountFromTransferLog(): string | null {
 const tokenAmount = computed(() => {
   const args = props.tx.args
   if (!args) return ''
-  // Prefer Transfer event log amount (correct for batch txs)
-  const logAmount = getAmountFromTransferLog()
-  const rawAmountValue = logAmount ?? args.find(a => a.name === 'amount')?.value
+  // Use Transfer event log amount (always correct, even for batch txs)
+  const rawAmountValue = getAmountFromTransferLog()
   if (rawAmountValue != null) {
     try {
       let rawValue = rawAmountValue

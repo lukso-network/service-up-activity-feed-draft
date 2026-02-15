@@ -43,7 +43,7 @@ import ErrorState from '../components/ErrorState.vue'
 const route = useRoute()
 
 const chainId = computed(() => parseInt(route.params.chainId as string) || 42)
-const address = computed(() => (route.params.address as string) || '')
+const address = computed(() => ((route.params.address as string) || '').toLowerCase())
 
 const chainIdRef = computed(() => chainId.value)
 const addressRef = computed(() => address.value)
