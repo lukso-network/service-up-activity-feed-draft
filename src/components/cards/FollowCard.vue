@@ -8,6 +8,8 @@
       size="x-small"
     />
 
+    <div class="basis-full h-0 sm:hidden"></div>
+
     <!-- Action text -->
     <span class="text-sm text-neutral-500 dark:text-neutral-400">
       {{ isUnfollow ? 'unfollowed' : 'followed' }}
