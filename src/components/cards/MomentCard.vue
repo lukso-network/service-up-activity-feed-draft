@@ -86,7 +86,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl, shortenAddress } from '../../lib/formatters'
-import { fetchFMomentsByCreator, resolveAddresses } from '../../lib/api'
+import { fetchFMomentByBlock, resolveAddresses } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -128,32 +128,19 @@ const momentUrl = computed(() => {
 
 onMounted(async () => {
   try {
-    // Fetch recent FM moments and match by timestamp
-    const moments = await fetchFMomentsByCreator(FM_COLLECTION, 20)
-    const txTimestamp = props.tx.blockTimestamp
+    // Match moment by block number
+    const blockNum = parseInt(String(props.tx.blockNumber).replace('n', ''))
+    const found = await fetchFMomentByBlock(FM_COLLECTION, blockNum)
+    moment.value = found
     
-    // Find the moment closest to the transaction timestamp
-    let best: MomentInfo | null = null
-    let bestDiff = Infinity
-    for (const m of moments) {
-      const mTime = Math.floor(new Date(m.db_write_timestamp).getTime() / 1000)
-      const diff = Math.abs(mTime - txTimestamp)
-      if (diff < bestDiff && diff < 120) { // within 2 minutes
-        bestDiff = diff
-        best = m
-      }
-    }
-    
-    moment.value = best
-    
-    if (best) {
+    if (found) {
       // Resolve the moment asset to get its image
-      queueResolve(props.chainId, [best.asset_id])
+      queueResolve(props.chainId, [found.asset_id])
       
       // Also try to get image from resolve API
       try {
-        const res = await resolveAddresses(props.chainId, [best.asset_id])
-        const identity = res.addressIdentities[best.asset_id.toLowerCase()]
+        const res = await resolveAddresses(props.chainId, [found.asset_id])
+        const identity = res.addressIdentities[found.asset_id.toLowerCase()]
         if (identity) {
           // Get images
           const images = identity.images

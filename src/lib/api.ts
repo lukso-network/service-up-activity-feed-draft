@@ -123,25 +123,26 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
 }
 
 /**
- * Fetch FM moments created by a profile, ordered by most recent.
- * Used to match "create moment" transactions to their resulting token.
+ * Fetch FM moment by block number from Envio indexer.
+ * Matches the created moment to the transaction's block.
  */
-export async function fetchFMomentsByCreator(
+export async function fetchFMomentByBlock(
   collectionAddress: string,
-  limit = 10
-): Promise<Array<{ asset_id: string; name: string; lsp4TokenName: string; db_write_timestamp: string }>> {
+  blockNumber: number
+): Promise<{ asset_id: string; name: string; lsp4TokenName: string } | null> {
   try {
     const lower = collectionAddress.toLowerCase()
     const query = `{
       Token(
-        where: { lsp8ReferenceContract_id: { _eq: "${lower}" } }
-        order_by: { db_write_timestamp: desc }
-        limit: ${limit}
+        where: {
+          lsp8ReferenceContract_id: { _eq: "${lower}" }
+          createdBlockNumber: { _eq: ${blockNumber} }
+        }
+        limit: 1
       ) {
         asset_id
         name
         lsp4TokenName
-        db_write_timestamp
       }
     }`
 
@@ -150,10 +151,11 @@ export async function fetchFMomentsByCreator(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
     })
-    if (!res.ok) return []
+    if (!res.ok) return null
     const data = await res.json()
-    return data.data?.Token || []
+    const tokens = data.data?.Token
+    return tokens?.length ? tokens[0] : null
   } catch {
-    return []
+    return null
   }
 }
