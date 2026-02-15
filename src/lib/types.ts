@@ -83,6 +83,8 @@ export interface AddressIdentity {
   isLSP7?: boolean
   isCollection?: boolean
   isUnknown?: boolean
+  owner_id?: string
+  lsp4Creators?: Array<{ profile_id?: string; address?: string }>
 }
 
 export interface ResolveAddressesResponse {

@@ -27,33 +27,39 @@
         :href="`https://universaleverything.io/asset/${receiver}`"
         target="_blank"
         rel="noopener noreferrer"
-        class="flex items-center gap-4 hover:opacity-90 transition-opacity no-underline"
+        class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
       >
-        <!-- NFT image -->
-        <div v-if="receiverNftImageUrl" class="flex-shrink-0">
+        <!-- NFT card with image -->
+        <div class="flex-shrink-0">
           <lukso-card
             variant="basic"
-            :background-url="receiverNftImageUrl"
-            width="120"
-            height="120"
+            :background-url="receiverNftImageUrl || receiverIconUrl || ''"
+            :width="140"
+            :height="140"
             border-radius="medium"
             shadow="small"
           ></lukso-card>
         </div>
-        <div v-else-if="receiverIconUrl" class="flex-shrink-0">
-          <img :src="receiverIconUrl" class="w-16 h-16 rounded-xl object-cover" :alt="receiverAssetName" />
-        </div>
-        <div v-else class="flex-shrink-0 w-16 h-16 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-          <span class="text-2xl">🖼️</span>
-        </div>
-        <!-- NFT info -->
-        <div class="flex flex-col gap-1 min-w-0">
-          <span class="text-base font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ receiverAssetName || shortenAddress(receiver) }}
+        <!-- NFT details -->
+        <div class="flex flex-col gap-1.5 min-w-0 py-1">
+          <span v-if="receiverAssetFullName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
+            {{ receiverAssetFullName }}
           </span>
-          <span v-if="receiverAssetDescription" class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2">
-            {{ receiverAssetDescription }}
+          <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
+            {{ receiverAssetSymbol || receiverAssetName || shortenAddress(receiver) }}
           </span>
+          <!-- Creator info -->
+          <div v-if="receiverCreatorAddress" class="mt-1">
+            <span class="text-xs text-neutral-400 dark:text-neutral-500">Created by</span>
+            <div class="mt-1">
+              <ProfileBadge
+                :address="receiverCreatorAddress"
+                :name="creatorIdentity?.name"
+                :profile-url="creatorProfileUrl"
+                size="x-small"
+              />
+            </div>
+          </div>
           <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
             {{ shortenAddress(receiver) }}
           </span>
@@ -163,7 +169,7 @@ const props = defineProps<{
   chainId: number
 }>()
 
-const { getIdentity } = useAddressResolver()
+const { getIdentity, queueResolve } = useAddressResolver()
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
@@ -295,8 +301,42 @@ const receiverNftImageUrl = computed(() => {
   return ''
 })
 
-const receiverAssetDescription = computed(() => {
-  return toIdentity.value?.description || ''
+
+// Full token name vs symbol for the NFT card
+const receiverAssetFullName = computed(() => {
+  return toIdentity.value?.lsp4TokenName || ''
+})
+
+const receiverAssetSymbol = computed(() => {
+  return toIdentity.value?.lsp4TokenSymbol || ''
+})
+
+// Creator address from lsp4Creators
+const receiverCreatorAddress = computed(() => {
+  const identity = toIdentity.value
+  const creators = (identity as any)?.lsp4Creators
+  if (creators?.length) {
+    return creators[0].profile_id || creators[0].address || ''
+  }
+  return identity?.owner_id || ''
+})
+
+const creatorIdentity = computed(() => {
+  const addr = receiverCreatorAddress.value
+  if (!addr) return undefined
+  // Queue resolution if not yet resolved
+  const identity = getIdentity(addr)
+  if (!identity) {
+    queueResolve(props.chainId, [addr])
+  }
+  return identity
+})
+
+const creatorProfileUrl = computed(() => {
+  const images = creatorIdentity.value?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return (sorted.find(i => i.width >= 32) || sorted[0]).src
 })
 
 // Format amounts
