@@ -222,14 +222,6 @@ const tokenDecimals = computed(() => {
   return tokenContractIdentity.value?.decimals ?? 18
 })
 
-const tokenName = computed(() => {
-  const identity = tokenContractIdentity.value
-  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
-  if (identity?.lsp4TokenName) return identity.lsp4TokenName
-  if (identity?.name) return identity.name
-  if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
-  return transferType.value === 'lsp8' ? 'NFT' : 'Token'
-})
 
 // Display name: prefer full token name for readability, fall back to symbol
 const tokenDisplayName = computed(() => {
@@ -258,11 +250,4 @@ const tokenIconUrl = computed(() => {
   return ''
 })
 
-const tokenId = computed(() => {
-  const args = props.tx.args
-  if (!args) return ''
-  const id = args.find(a => a.name === 'tokenId')
-  if (id) return String(id.value).slice(0, 10)
-  return ''
-})
 </script>
