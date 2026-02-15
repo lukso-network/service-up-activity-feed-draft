@@ -1,12 +1,15 @@
 <template>
   <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4 overflow-hidden max-w-full">
-    <div class="flex items-center gap-3 min-w-0 flex-wrap">
-      <slot />
-      <!-- Chevron toggle for details -->
+    <div class="flex gap-3">
+      <!-- Main content area — wraps freely -->
+      <div class="flex items-center gap-3 min-w-0 flex-wrap flex-1">
+        <slot />
+      </div>
+      <!-- Chevron — always top-right -->
       <button
         v-if="tx"
         @click="expanded = !expanded"
-        class="flex-shrink-0 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
+        class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
       >
         <svg
           class="w-4 h-4 transition-transform"

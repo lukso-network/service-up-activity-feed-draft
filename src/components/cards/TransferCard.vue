@@ -18,7 +18,6 @@
         <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
         <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
       </a>
-      <div class="flex-1"></div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
@@ -158,7 +157,7 @@
       />
 
       <!-- Timestamp (right side) -->
-      <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
+      <TimeStamp :timestamp="tx.blockTimestamp" />
       <button
         @click="detailsExpanded = !detailsExpanded"
         class="flex-shrink-0 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"

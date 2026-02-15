@@ -21,9 +21,6 @@
       size="x-small"
     />
 
-    <!-- Spacer to push timestamp right -->
-    <div class="flex-1"></div>
-
     <!-- Timestamp -->
     <TimeStamp :timestamp="tx.blockTimestamp" />
   </CompactCard>

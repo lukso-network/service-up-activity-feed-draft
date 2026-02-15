@@ -17,7 +17,7 @@
     </span>
 
     <!-- Timestamp -->
-    <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
+    <TimeStamp :timestamp="tx.blockTimestamp" />
   </CompactCard>
 </template>
 

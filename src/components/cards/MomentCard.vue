@@ -9,7 +9,6 @@
       />
       <span class="text-sm text-neutral-500 dark:text-neutral-400">created a new moment</span>
       <span class="text-base">📸</span>
-      <div class="flex-1"></div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
