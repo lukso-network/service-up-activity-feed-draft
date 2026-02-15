@@ -459,13 +459,32 @@ const formattedAmount = computed(() => {
   return ''
 })
 
+// Extract amount from Transfer event log (most reliable, especially for batch txs)
+function getAmountFromTransferLog(): string | null {
+  const logs = props.tx.logs
+  if (!logs?.length) return null
+  const transferLog = logs.find((l: any) =>
+    l.eventName === 'Transfer' && l.args?.some((a: any) => a.name === 'amount')
+  )
+  if (!transferLog?.args) return null
+  const amountArg = transferLog.args.find((a: any) => a.name === 'amount')
+  if (!amountArg) return null
+  try {
+    return String(amountArg.value)
+  } catch {
+    return null
+  }
+}
+
 const tokenAmount = computed(() => {
   const args = props.tx.args
   if (!args) return ''
-  const amount = args.find(a => a.name === 'amount')
-  if (amount) {
+  // Prefer Transfer event log amount (correct for batch txs)
+  const logAmount = getAmountFromTransferLog()
+  const rawAmountValue = logAmount ?? args.find(a => a.name === 'amount')?.value
+  if (rawAmountValue != null) {
     try {
-      let rawValue = amount.value
+      let rawValue = rawAmountValue
       // Handle array of bytes (e.g. [1,1,1,...] or {0:1, 1:2, ...}) — convert to hex string
       if (Array.isArray(rawValue)) {
         const hex = '0x' + rawValue.map((b: number) => b.toString(16).padStart(2, '0')).join('')
@@ -498,7 +517,7 @@ const tokenAmount = computed(() => {
       const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
       return `${whole}.${fracStr}`
     } catch {
-      return String(amount.value).length > 30 ? '' : String(amount.value)
+      return String(rawAmountValue).length > 30 ? '' : String(rawAmountValue)
     }
   }
   return ''
