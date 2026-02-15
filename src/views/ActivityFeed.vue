@@ -35,6 +35,7 @@ import { useActivity } from '../composables/useActivity'
 import { useAddressResolver } from '../composables/useAddressResolver'
 import type { AddressIdentity } from '../lib/types'
 import { resolveAddresses } from '../lib/api'
+import { classifyTransaction } from '../lib/formatters'
 import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
@@ -60,7 +61,12 @@ const devMode = computed(() => route.query.devmode !== undefined)
 
 const visibleTransactions = computed(() => {
   if (devMode.value) return transactions.value
-  return transactions.value.filter(tx => tx.status !== 0)
+  return transactions.value.filter(tx => {
+    if (tx.status === 0) return false
+    const { type } = classifyTransaction(tx)
+    if (type === 'contract_execution' || type === 'unknown') return false
+    return true
+  })
 })
 
 function showNewTransactions() {
