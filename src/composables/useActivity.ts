@@ -17,7 +17,11 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
     error.value = null
     try {
       const res = await fetchActivity(chainId.value, address.value)
-      transactions.value = res.data
+      transactions.value = res.data.sort((a, b) => {
+        const blockA = parseInt(a.blockNumber) || 0
+        const blockB = parseInt(b.blockNumber) || 0
+        return blockB - blockA
+      })
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       if (res.data.length > 0) {
