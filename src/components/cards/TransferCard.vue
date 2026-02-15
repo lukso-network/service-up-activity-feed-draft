@@ -112,10 +112,13 @@ const tokenAmount = computed(() => {
   const amount = args.find(a => a.name === 'amount')
   if (amount) {
     const val = BigInt(String(amount.value))
-    const whole = val / 10n ** 18n
-    const frac = val % 10n ** 18n
+    const dec = BigInt(tokenDecimals.value)
+    if (dec === 0n) return val.toString()
+    const divisor = 10n ** dec
+    const whole = val / divisor
+    const frac = val % divisor
     if (frac === 0n) return whole.toString()
-    const fracStr = frac.toString().padStart(18, '0').replace(/0+$/, '').slice(0, 4)
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
     return `${whole}.${fracStr}`
   }
   return ''
@@ -127,19 +130,34 @@ const tokenContractIdentity = computed(() => {
   return getIdentity(props.tx.to)
 })
 
+const tokenDecimals = computed(() => {
+  return tokenContractIdentity.value?.decimals ?? 18
+})
+
 const tokenName = computed(() => {
-  // Resolved token contract name is the best source
-  if (tokenContractIdentity.value?.name) return tokenContractIdentity.value.name
-  // Fallback to enhanced decoding field
+  const identity = tokenContractIdentity.value
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.name) return identity.name
   if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
   return transferType.value === 'lsp8' ? 'NFT' : 'Token'
 })
 
 const tokenIconUrl = computed(() => {
-  const images = tokenContractIdentity.value?.profileImages
-  if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  const identity = tokenContractIdentity.value
+  // Token assets use 'icons' not 'profileImages'
+  const icons = identity?.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  }
+  // Fallback to profileImages
+  const images = identity?.profileImages
+  if (images?.length) {
+    const sorted = [...images].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  }
+  return ''
 })
 
 const tokenId = computed(() => {

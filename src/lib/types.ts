@@ -73,6 +73,16 @@ export interface AddressIdentity {
   description?: string
   profileImages?: ProfileImage[]
   backgroundImages?: ProfileImage[]
+  // Token/Asset fields
+  icons?: ProfileImage[]
+  images?: ProfileImage[]
+  decimals?: number
+  lsp4TokenName?: string
+  lsp4TokenSymbol?: string
+  lsp4TokenType?: number
+  isLSP7?: boolean
+  isCollection?: boolean
+  isUnknown?: boolean
 }
 
 export interface ResolveAddressesResponse {
