@@ -127,39 +127,36 @@
   <!-- NFT card: token is NFT type (lsp4TokenType 1/2), or token sent to an NFT/asset -->
   <ExtendedCard v-else-if="isLikeAction" :tx="(tx as any)">
     <template #header>
-      <div class="flex items-center gap-2">
-        <ProfileBadge
-          :address="senderAddress"
-          :name="fromIdentity?.name"
-          :profile-url="fromProfileUrl"
-          size="x-small"
-        />
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">
-          {{ isNftToken ? 'sent' : (isLikesTransfer ? 'liked with' : 'sent') }}
-        </span>
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
+        {{ isNftToken ? 'sent' : (isLikesTransfer ? 'liked with' : 'sent') }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
         >
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
           <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
         </a>
-        <template v-if="!isNftToken">
-          <!-- Show "to" receiver for liked-with cards -->
-        </template>
-        <template v-else>
-          to
-          <ProfileBadge
-            v-if="receiver"
-            :address="receiver"
-            :name="toIdentity?.name"
-            :profile-url="toProfileUrl"
-            size="x-small"
-          />
-        </template>
-      </div>
+        <template v-if="isNftToken">to</template>
+      </span>
+      <template v-if="isNftToken">
+        <div class="basis-full h-0 sm:hidden"></div>
+        <ProfileBadge
+          v-if="receiver"
+          :address="receiver"
+          :name="toIdentity?.name"
+          :profile-url="toProfileUrl"
+          size="x-small"
+        />
+      </template>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
