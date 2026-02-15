@@ -143,6 +143,8 @@
         </template>
       </span>
 
+      <div class="basis-full h-0 sm:hidden"></div>
+
       <!-- Target (receiver) -->
       <template v-if="receiverIsAsset">
         <a

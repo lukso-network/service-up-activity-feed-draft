@@ -15,6 +15,8 @@
       {{ isUnfollow ? 'unfollowed' : 'followed' }}
     </span>
 
+    <div class="basis-full h-0 sm:hidden"></div>
+
     <!-- Target -->
     <ProfileBadge
       :address="targetAddress"
