@@ -387,10 +387,18 @@ const tokenAmount = computed(() => {
         rawValue = hex
       }
       const val = BigInt(String(rawValue))
-      // If value is absurdly large (> 10^30), it's likely a tokenId not an amount
-      if (val > 10n ** 30n) return ''
       const dec = BigInt(tokenDecimals.value)
-      if (dec === 0n) return val.toString()
+      if (dec === 0n) {
+        const s = val.toString()
+        // Abbreviate very large numbers
+        if (s.length > 12) {
+          const exp = s.length - 1
+          return `${s[0]}.${s.slice(1, 4)}e${exp}`
+        }
+        // Add thousand separators for medium numbers
+        if (s.length > 3) return Number(val).toLocaleString('en-US')
+        return s
+      }
       const divisor = 10n ** dec
       const whole = val / divisor
       const frac = val % divisor
