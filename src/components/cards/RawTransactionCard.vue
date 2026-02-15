@@ -1,5 +1,5 @@
 <template>
-  <CompactCard>
+  <CompactCard :tx="(tx as any)">
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-3">
         <!-- Actor -->

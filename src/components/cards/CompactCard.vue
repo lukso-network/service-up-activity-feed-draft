@@ -3,5 +3,14 @@
     <div class="flex items-center gap-3 min-w-0 overflow-hidden">
       <slot />
     </div>
+    <JsonExpander v-if="tx" :data="tx" />
   </div>
 </template>
+
+<script setup lang="ts">
+import JsonExpander from '../shared/JsonExpander.vue'
+
+defineProps<{
+  tx?: Record<string, unknown>
+}>()
+</script>

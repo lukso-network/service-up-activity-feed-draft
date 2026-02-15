@@ -1,6 +1,6 @@
 <template>
   <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
-  <ExtendedCard v-if="isLikeAction">
+  <ExtendedCard v-if="isLikeAction" :tx="(tx as any)">
     <template #header>
       <div class="flex items-center gap-2">
         <ProfileBadge
@@ -161,6 +161,7 @@
       <!-- Timestamp (right side) -->
       <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
     </div>
+    <JsonExpander :data="(tx as any)" />
   </div>
 </template>
 
@@ -170,6 +171,7 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import ExtendedCard from './ExtendedCard.vue'
+import JsonExpander from '../shared/JsonExpander.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 

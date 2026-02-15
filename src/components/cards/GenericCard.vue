@@ -1,5 +1,5 @@
 <template>
-  <ExtendedCard>
+  <ExtendedCard :tx="(tx as any)">
     <template #header>
       <div class="flex items-center gap-3">
         <ProfileBadge

@@ -1,5 +1,5 @@
 <template>
-  <CompactCard>
+  <CompactCard :tx="(tx as any)">
     <!-- Actor -->
     <ProfileBadge
       :address="tx.from"

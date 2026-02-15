@@ -8,5 +8,14 @@
     <div>
       <slot name="content" />
     </div>
+    <JsonExpander v-if="tx" :data="tx" />
   </div>
 </template>
+
+<script setup lang="ts">
+import JsonExpander from '../shared/JsonExpander.vue'
+
+defineProps<{
+  tx?: Record<string, unknown>
+}>()
+</script>
