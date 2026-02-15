@@ -359,7 +359,7 @@ const txType = computed(() => classifyTransaction(props.tx).type)
 const isMint = computed(() => txType.value === 'token_mint' || txType.value === 'nft_mint')
 const isNftMint = computed(() => txType.value === 'nft_mint')
 
-// Extract mint data from Transfer event log (args may be empty for unknown contracts)
+// Extract mint data from Transfer event log OR function args + Executed event
 const mintTransferLog = computed(() => {
   if (!isMint.value) return null
   return props.tx.logs?.find((l: any) =>
@@ -373,8 +373,21 @@ function getMintLogArg(name: string): string {
   return typeof arg?.value === 'string' ? arg.value : ''
 }
 
-// Minter = who received the token (Transfer event 'to')
-const minterAddress = computed(() => getMintLogArg('to'))
+// Minter = who received the token
+// 1. Transfer event 'to' arg
+// 2. Function args 'to' (mint(to, tokenId, force, data))
+// 3. Executed event address (the UP that called mint)
+const minterAddress = computed(() => {
+  const fromLog = getMintLogArg('to')
+  if (fromLog) return fromLog
+  // From function args (mint has 'to' param)
+  const toArg = props.tx.args?.find(a => a.name === 'to')
+  if (toArg?.value && typeof toArg.value === 'string') return toArg.value
+  // From Executed event (the UP)
+  const executed = props.tx.logs?.find((l: any) => l.eventName === 'Executed')
+  if (executed?.address) return executed.address
+  return props.tx.from
+})
 const minterIdentity = computed(() => minterAddress.value ? getIdentity(minterAddress.value) : undefined)
 const minterProfileUrl = computed(() => {
   const images = minterIdentity.value?.profileImages
@@ -383,8 +396,8 @@ const minterProfileUrl = computed(() => {
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
-// Mint token contract = Transfer event emitter address
-const mintTokenContract = computed(() => mintTransferLog.value?.address || '')
+// Mint token contract = Transfer event emitter OR tx.to (the contract being minted on)
+const mintTokenContract = computed(() => mintTransferLog.value?.address || props.tx.to || '')
 
 const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
 
