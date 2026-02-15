@@ -175,6 +175,17 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
+  // Forever Moments — create moment (custom function on FM collection)
+  const FM_COLLECTION = '0xef54710b5a78b4926104a65594539521eb440d37'
+  if (tx.sig === '0x74ee4f68' && tx.to?.toLowerCase() === FM_COLLECTION) {
+    return {
+      type: 'create_moment',
+      label: 'Created Moment',
+      icon: '📸',
+      color: 'text-pink-500',
+    }
+  }
+
   // Execute call on a Key Manager / UP
   if (fn === 'execute' || fn === 'executebatch') {
     // If there's value, it's a transfer via execute

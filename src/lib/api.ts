@@ -121,3 +121,39 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
     return null
   }
 }
+
+/**
+ * Fetch FM moments created by a profile, ordered by most recent.
+ * Used to match "create moment" transactions to their resulting token.
+ */
+export async function fetchFMomentsByCreator(
+  collectionAddress: string,
+  limit = 10
+): Promise<Array<{ asset_id: string; name: string; lsp4TokenName: string; db_write_timestamp: string }>> {
+  try {
+    const lower = collectionAddress.toLowerCase()
+    const query = `{
+      Token(
+        where: { lsp8ReferenceContract_id: { _eq: "${lower}" } }
+        order_by: { db_write_timestamp: desc }
+        limit: ${limit}
+      ) {
+        asset_id
+        name
+        lsp4TokenName
+        db_write_timestamp
+      }
+    }`
+
+    const res = await fetch(ENVIO_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.data?.Token || []
+  } catch {
+    return []
+  }
+}

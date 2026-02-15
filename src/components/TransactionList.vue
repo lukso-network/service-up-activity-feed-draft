@@ -56,6 +56,7 @@ import RawTransactionCard from './cards/RawTransactionCard.vue'
 import ProfileUpdateCard from './cards/ProfileUpdateCard.vue'
 import PermissionCard from './cards/PermissionCard.vue'
 import GenericCard from './cards/GenericCard.vue'
+import MomentCard from './cards/MomentCard.vue'
 
 defineProps<{
   transactions: Transaction[]
@@ -78,6 +79,8 @@ function getCardComponent(tx: Transaction): Component {
     case 'follow':
     case 'unfollow':
       return FollowCard
+    case 'create_moment':
+      return MomentCard
     case 'profile_update':
       return ProfileUpdateCard
     case 'permission_change':
