@@ -17,7 +17,7 @@
         Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ tokenAmount }}</span>
         <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
         <a
-          :href="`https://universaleverything.io/${tx.to}`"
+          :href="`https://universaleverything.io/asset/${tx.to}`"
           target="_blank"
           rel="noopener noreferrer"
           class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
@@ -27,7 +27,7 @@
         Sent
         <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
         <a
-          :href="`https://universaleverything.io/${tx.to}`"
+          :href="`https://universaleverything.io/asset/${tx.to}`"
           target="_blank"
           rel="noopener noreferrer"
           class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"

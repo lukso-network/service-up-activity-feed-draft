@@ -1,11 +1,5 @@
 <template>
   <div class="min-h-screen">
-    <ProfileHeader
-      :profile="profile"
-      :address="address"
-      :loading="profileLoading"
-    />
-
     <!-- Refresh bar -->
     <div
       v-if="newTxCount > 0"
@@ -41,7 +35,6 @@ import { useActivity } from '../composables/useActivity'
 import { useAddressResolver } from '../composables/useAddressResolver'
 import type { AddressIdentity } from '../lib/types'
 import { resolveAddresses } from '../lib/api'
-import ProfileHeader from '../components/ProfileHeader.vue'
 import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
