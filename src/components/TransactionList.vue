@@ -13,25 +13,12 @@
       </div>
     </TransitionGroup>
 
-    <!-- Load more -->
-    <div v-if="hasMore" class="pt-2">
-      <button
-        @click="$emit('loadMore')"
-        :disabled="loadingMore"
-        class="w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200
-          bg-neutral-50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-300
-          hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white
-          disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span v-if="loadingMore" class="inline-flex items-center gap-2">
-          <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Loading...
-        </span>
-        <span v-else>Load more</span>
-      </button>
+    <!-- Infinite scroll sentinel -->
+    <div v-if="hasMore" ref="sentinel" class="flex justify-center py-4">
+      <svg v-if="loadingMore" class="animate-spin w-5 h-5 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
     </div>
 
     <!-- Empty state -->
@@ -47,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { Component } from 'vue'
 import type { Transaction } from '../lib/types'
 import { useAddressResolver } from '../composables/useAddressResolver'
@@ -69,7 +56,30 @@ const props = defineProps<{
   loading: boolean
 }>()
 
-defineEmits<{ loadMore: [] }>()
+const emit = defineEmits<{ loadMore: [] }>()
+
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && props.hasMore && !props.loadingMore) {
+        emit('loadMore')
+      }
+    },
+    { rootMargin: '200px' }
+  )
+  if (sentinel.value) observer.observe(sentinel.value)
+})
+
+watch(sentinel, (el) => {
+  if (observer && el) observer.observe(el)
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
+})
 
 const { getIdentity } = useAddressResolver()
 
