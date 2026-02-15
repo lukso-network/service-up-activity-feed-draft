@@ -1,6 +1,88 @@
 <template>
+  <!-- NFT Mint: extended card with NFT preview -->
+  <ExtendedCard v-if="isNftMint" :tx="(tx as any)">
+    <template #header>
+      <div class="flex items-center gap-2">
+        <ProfileBadge
+          :address="minterAddress"
+          :name="minterIdentity?.name"
+          :profile-url="minterProfileUrl"
+          size="x-small"
+        />
+        <span class="text-sm text-neutral-500 dark:text-neutral-400">minted</span>
+        <a
+          :href="`https://universaleverything.io/asset/${mintTokenContract}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="mintTokenIconUrl" :src="mintTokenIconUrl" class="w-4 h-4 rounded-full" :alt="mintTokenName" />
+          <span>{{ mintAmount }} {{ mintTokenName }}</span>
+        </a>
+      </div>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </template>
+    <template #content>
+      <a
+        :href="`https://universaleverything.io/asset/${mintTokenContract}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
+      >
+        <div v-if="mintNftImageUrl" class="w-[140px] h-[140px] rounded-xl overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-800">
+          <img :src="mintNftImageUrl" class="w-full h-full object-cover" :alt="mintTokenName" />
+        </div>
+        <div class="flex flex-col gap-1 min-w-0">
+          <span class="text-sm font-bold text-neutral-800 dark:text-neutral-200 line-clamp-2">{{ mintTokenName }}</span>
+        </div>
+      </a>
+    </template>
+  </ExtendedCard>
+
+  <!-- Token Mint: compact card -->
+  <div v-else-if="isMint" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+    <div class="flex gap-2">
+    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
+      <ProfileBadge
+        :address="minterAddress"
+        :name="minterIdentity?.name"
+        :profile-url="minterProfileUrl"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+        minted
+        <a
+          :href="`https://universaleverything.io/asset/${mintTokenContract}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <span>{{ mintAmount }}</span>
+          <img v-if="mintTokenIconUrl" :src="mintTokenIconUrl" class="w-4 h-4 rounded-full" :alt="mintTokenName" />
+          <span>{{ mintTokenName }}</span>
+        </a>
+      </span>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </div>
+    <button
+      @click="detailsExpanded = !detailsExpanded"
+      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
+    >
+      <svg
+        class="w-4 h-4 transition-transform"
+        :class="{ 'rotate-180': detailsExpanded }"
+        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+    </div>
+    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
+  </div>
+
   <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
-  <ExtendedCard v-if="isLikeAction" :tx="(tx as any)">
+  <ExtendedCard v-else-if="isLikeAction" :tx="(tx as any)">
     <template #header>
       <div class="flex items-center gap-2">
         <ProfileBadge
@@ -192,7 +274,7 @@
 import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
-import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
+import { formatLYX, shortenAddress, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
 import { fetchLikesBalance, fetchTokenName } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
@@ -218,6 +300,91 @@ function getArgString(name: string): string {
   const v = getArg(name)
   return typeof v === 'string' ? v : ''
 }
+
+// ─── Mint detection: Transfer event from zero address ───
+const txType = computed(() => classifyTransaction(props.tx).type)
+const isMint = computed(() => txType.value === 'token_mint' || txType.value === 'nft_mint')
+const isNftMint = computed(() => txType.value === 'nft_mint')
+
+// Extract mint data from Transfer event log (args may be empty for unknown contracts)
+const mintTransferLog = computed(() => {
+  if (!isMint.value) return null
+  return props.tx.logs?.find((l: any) =>
+    l.eventName === 'Transfer' &&
+    l.args?.some((a: any) => a.name === 'from' && a.value === '0x0000000000000000000000000000000000000000')
+  ) || null
+})
+
+function getMintLogArg(name: string): string {
+  const arg = mintTransferLog.value?.args?.find((a: any) => a.name === name)
+  return typeof arg?.value === 'string' ? arg.value : ''
+}
+
+// Minter = who received the token (Transfer event 'to')
+const minterAddress = computed(() => getMintLogArg('to'))
+const minterIdentity = computed(() => minterAddress.value ? getIdentity(minterAddress.value) : undefined)
+const minterProfileUrl = computed(() => {
+  const images = minterIdentity.value?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
+})
+
+// Mint token contract = Transfer event emitter address
+const mintTokenContract = computed(() => mintTransferLog.value?.address || '')
+
+const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
+
+const mintAmount = computed(() => {
+  if (!mintTransferLog.value) return ''
+  const amountArg = mintTransferLog.value.args?.find((a: any) => a.name === 'amount')
+  if (!amountArg?.value) return '1' // NFT default
+  try {
+    const val = BigInt(String(amountArg.value))
+    const dec = BigInt(mintTokenIdentity.value?.decimals ?? 18)
+    if (dec === 0n) {
+      const s = val.toString()
+      if (s.length > 12) return `${s[0]}.${s.slice(1, 4)}e${s.length - 1}`
+      if (s.length > 3) return Number(val).toLocaleString('en-US')
+      return s
+    }
+    const divisor = 10n ** dec
+    const whole = val / divisor
+    const frac = val % divisor
+    if (frac === 0n) return whole.toString()
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+    return `${whole}.${fracStr}`
+  } catch {
+    return String(amountArg.value)
+  }
+})
+
+const mintTokenName = computed(() =>
+  mintTokenIdentity.value?.lsp4TokenSymbol || mintTokenIdentity.value?.lsp4TokenName || mintTokenIdentity.value?.name || 'Token'
+)
+
+const mintTokenIconUrl = computed(() => {
+  const icons = mintTokenIdentity.value?.icons
+  if (!icons?.length) return ''
+  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
+})
+
+// NFT mint: image from the token contract identity
+const mintNftImageUrl = computed(() => {
+  const identity = mintTokenIdentity.value
+  const images = identity?.images
+  if (images?.length) {
+    const sorted = [...images].sort((a, b) => a.width - b.width)
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+  }
+  const icons = identity?.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+  }
+  return ''
+})
 
 // ─── Transfer type from decoded standard ───
 const transferType = computed(() => {

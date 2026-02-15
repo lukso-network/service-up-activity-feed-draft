@@ -75,6 +75,8 @@ function getCardComponent(tx: Transaction): Component {
     case 'value_transfer':
     case 'token_transfer':
     case 'nft_transfer':
+    case 'token_mint':
+    case 'nft_mint':
       return TransferCard
     case 'follow':
     case 'unfollow':

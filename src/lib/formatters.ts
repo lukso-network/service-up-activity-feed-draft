@@ -125,6 +125,24 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
+  // Detect mints from Transfer event log (from === zero address)
+  const mintLog = tx.logs?.find((l: any) =>
+    l.eventName === 'Transfer' &&
+    l.args?.some((a: any) => a.name === 'from' && a.value === '0x0000000000000000000000000000000000000000')
+  )
+
+  if (mintLog) {
+    // LSP8 Transfer has 'tokenId' arg; LSP7 has 'amount'
+    const hasTokenId = mintLog.args?.some((a: any) => a.name === 'tokenId')
+    const isNft = hasTokenId || standard.includes('lsp8') || standard.includes('identifiabledigitalasset')
+    return {
+      type: isNft ? 'nft_mint' : 'token_mint',
+      label: isNft ? 'Minted NFT' : 'Minted',
+      icon: '✨',
+      color: 'text-emerald-500',
+    }
+  }
+
   // LSP7 Token transfers
   if (standard.includes('lsp7') || (standard.includes('digitalasset') && !standard.includes('identifiable'))) {
     return {

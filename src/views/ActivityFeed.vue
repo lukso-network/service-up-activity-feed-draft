@@ -109,7 +109,19 @@ watch(transactions, (txs) => {
         }
       }
     }
-    // Note: tx.to is always the token contract (API unwraps KM/UP layers)
+    // Collect addresses from event logs (Transfer emitter = token contract, etc.)
+    if (tx.logs) {
+      for (const log of tx.logs as any[]) {
+        if (log.address) addresses.add(log.address)
+        if (log.args) {
+          for (const arg of log.args) {
+            if (arg.type === 'address' && typeof arg.value === 'string' && arg.value !== '0x0000000000000000000000000000000000000000') {
+              addresses.add(arg.value)
+            }
+          }
+        }
+      }
+    }
   }
   if (addresses.size > 0) {
     queueResolve(chainId.value, [...addresses])
