@@ -56,26 +56,75 @@ export async function resolveAddresses(
   })
 }
 
-const FM_API = 'https://www.forevermoments.life/api/moments'
+const RPC_URL = 'https://rpc.mainnet.lukso.network'
+const IPFS_GATEWAY = 'https://api.universalprofile.cloud/ipfs'
+const LSP4_METADATA_KEY = '9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e'
 
 /**
- * Fetch moment title from the Forever Moments API.
- * Only used for the name — images/icons come from the resolve API.
+ * Fetch LSP4 name from on-chain metadata via RPC.
+ * Uses getData(bytes32) to read LSP4Metadata, then fetches the IPFS JSON for the name.
+ * Only returns the name — images come from the resolve API.
  */
-export async function fetchForeverMoment(address: string): Promise<Partial<AddressIdentity> | null> {
+export async function fetchLSP4Name(address: string): Promise<Partial<AddressIdentity> | null> {
   try {
-    const res = await fetch(`${FM_API}/${address}`)
-    if (!res.ok) return null
-    const data = await res.json()
-    const moment = data.moment
-    if (!moment?.title) return null
+    // Call getData(LSP4Metadata) on the contract
+    const rpcRes = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_call',
+        params: [{ to: address, data: `0x54f6127f${LSP4_METADATA_KEY}` }, 'latest'],
+        id: 1,
+      }),
+    })
+    const rpcJson = await rpcRes.json()
+    const result = rpcJson.result as string
+    if (!result || result.length <= 66) return null
 
+    // Decode ABI bytes
+    const hex = result.slice(2)
+    const length = parseInt(hex.slice(64, 128), 16)
+    if (length === 0) return null
+    const payload = hex.slice(128, 128 + length * 2)
+
+    // Parse VerifiableURI: 00006f357c6a + 32-byte hash + UTF-8 URL
+    let ipfsUrl = ''
+    if (payload.startsWith('00006f357c6a')) {
+      // Skip: hashFunction(4 chars) + hash(64 chars) = 68 chars after prefix
+      const urlHex = payload.slice(4 + 4 + 64)
+      ipfsUrl = hexToUtf8(urlHex)
+    } else {
+      ipfsUrl = hexToUtf8(payload)
+    }
+    if (!ipfsUrl) return null
+
+    // Resolve IPFS URL
+    const metaUrl = ipfsUrl.startsWith('ipfs://')
+      ? `${IPFS_GATEWAY}/${ipfsUrl.slice(7)}`
+      : ipfsUrl
+
+    // Fetch metadata JSON — only need the name
+    const metaRes = await fetch(metaUrl)
+    if (!metaRes.ok) return null
+    const meta = await metaRes.json()
+    const lsp4 = meta.LSP4Metadata || meta
+
+    if (!lsp4.name) return null
     return {
       address: address.toLowerCase(),
-      lsp4TokenName: moment.title,
-      description: moment.description || undefined,
+      lsp4TokenName: lsp4.name,
+      description: lsp4.description || undefined,
     }
   } catch {
     return null
   }
+}
+
+function hexToUtf8(hex: string): string {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16)
+  }
+  return new TextDecoder().decode(bytes)
 }

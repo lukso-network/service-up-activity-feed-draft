@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { resolveAddresses, fetchForeverMoment } from '../lib/api'
+import { resolveAddresses, fetchLSP4Name } from '../lib/api'
 import type { AddressIdentity } from '../lib/types'
 
 const cache = reactive<Record<string, AddressIdentity>>({})
@@ -44,7 +44,7 @@ export function useAddressResolver() {
         const identity = cache[lower]
         if (identity && !identity.lsp4TokenName && !identity.name && !fmPending.has(lower)) {
           fmPending.add(lower)
-          fetchForeverMoment(addr).then(meta => {
+          fetchLSP4Name(addr).then(meta => {
             if (meta) {
               const cached = cache[lower]
               if (meta.lsp4TokenName) cached.lsp4TokenName = meta.lsp4TokenName
