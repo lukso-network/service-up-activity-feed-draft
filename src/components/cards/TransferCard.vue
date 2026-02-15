@@ -29,16 +29,28 @@
         rel="noopener noreferrer"
         class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
       >
-        <!-- NFT card with image -->
-        <div class="flex-shrink-0">
-          <lukso-card
-            variant="basic"
-            :background-url="receiverNftImageUrl || receiverIconUrl || ''"
-            :width="140"
-            :height="140"
-            border-radius="medium"
-            shadow="small"
-          ></lukso-card>
+        <!-- NFT image card -->
+        <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
+          <div class="relative">
+            <img
+              v-if="receiverNftImageUrl"
+              :src="receiverNftImageUrl"
+              class="w-[140px] h-[140px] object-cover"
+              :alt="receiverAssetName"
+              loading="lazy"
+            />
+            <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+              <lukso-profile
+                :profile-address="receiver"
+                has-identicon
+                size="x-large"
+              ></lukso-profile>
+            </div>
+          </div>
+          <!-- Address bar below image -->
+          <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+            <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(receiver) }}</span>
+          </div>
         </div>
         <!-- NFT details -->
         <div class="flex flex-col gap-1.5 min-w-0 py-1">
