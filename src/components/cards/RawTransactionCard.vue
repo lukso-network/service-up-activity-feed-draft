@@ -57,6 +57,7 @@
 import { ref, computed } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
+import { optimizeImageUrl } from '../../lib/formatters'
 import CompactCard from './CompactCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -76,7 +77,8 @@ const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+  return optimizeImageUrl(src, 24) // x-small ~ 24px
 })
 
 const selectorDisplay = computed(() => {

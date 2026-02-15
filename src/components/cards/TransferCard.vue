@@ -168,7 +168,7 @@
 import { computed } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
-import { formatLYX, shortenAddress } from '../../lib/formatters'
+import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -215,7 +215,8 @@ const senderIconUrl = computed(() => {
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+    return optimizeImageUrl(src, 24) // w-6 = 24px
   }
   return ''
 })
@@ -224,7 +225,8 @@ const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+  return optimizeImageUrl(src, 32)
 })
 
 // Determine transfer type
@@ -271,7 +273,8 @@ const receiverIconUrl = computed(() => {
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+    return optimizeImageUrl(src, 24) // w-6 = 24px
   }
   return ''
 })
@@ -280,7 +283,8 @@ const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+  return optimizeImageUrl(src, 32)
 })
 
 // Detect "like" action: LIKES token sent to an NFT/asset contract
@@ -318,12 +322,14 @@ const receiverNftImageUrl = computed(() => {
   const images = identity?.images
   if (images?.length) {
     const sorted = [...images].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+    const src = (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+    return optimizeImageUrl(src, 140) // w-[140px]
   }
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+    const src = (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+    return optimizeImageUrl(src, 140)
   }
   return ''
 })
@@ -363,7 +369,8 @@ const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+  return optimizeImageUrl(src, 24)
 })
 
 // Format amounts
@@ -439,13 +446,15 @@ const tokenIconUrl = computed(() => {
   const icons = identity?.icons
   if (icons?.length) {
     const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+    return optimizeImageUrl(src, 16) // w-4 = 16px
   }
   // Fallback to profileImages
   const images = identity?.profileImages
   if (images?.length) {
     const sorted = [...images].sort((a, b) => a.width - b.width)
-    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+    const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
+    return optimizeImageUrl(src, 16)
   }
   return ''
 })

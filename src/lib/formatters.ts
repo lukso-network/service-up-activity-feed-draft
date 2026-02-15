@@ -1,5 +1,19 @@
 import type { Transaction } from './types'
 
+/**
+ * Add width parameter to universalprofile.cloud image URLs for optimized loading.
+ * @param url - The image URL
+ * @param renderedWidth - The rendered width in CSS pixels (will be doubled for retina)
+ */
+export function optimizeImageUrl(url: string, renderedWidth: number): string {
+  if (!url) return url
+  // Only optimize universalprofile.cloud/image URLs
+  if (!url.includes('api.universalprofile.cloud/image')) return url
+  const width = renderedWidth * 2 // 2x for retina displays
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}width=${width}`
+}
+
 export function formatRelativeTime(timestamp: number): string {
   const now = Math.floor(Date.now() / 1000)
   const diff = now - timestamp

@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { AddressIdentity } from '../lib/types'
+import { optimizeImageUrl } from '../lib/formatters'
 
 const props = defineProps<{
   profile: AddressIdentity | undefined
@@ -63,13 +64,15 @@ const avatarSrc = computed(() => {
   const images = props.profile?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 64) || sorted[0]).src
+  const src = (sorted.find(i => i.width >= 64) || sorted[0]).src
+  return optimizeImageUrl(src, 48) // large ~ 48px
 })
 
 const backgroundSrc = computed(() => {
   const images = props.profile?.backgroundImages
   if (!images?.length) return null
   const sorted = [...images].sort((a, b) => a.width - b.width)
-  return (sorted.find(i => i.width >= 320) || sorted[sorted.length - 1]).src
+  const src = (sorted.find(i => i.width >= 320) || sorted[sorted.length - 1]).src
+  return optimizeImageUrl(src, 400) // h-28 but wide, use ~400px
 })
 </script>
