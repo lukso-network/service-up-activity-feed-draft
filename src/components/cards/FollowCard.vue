@@ -9,7 +9,7 @@
     />
 
     <!-- Action text -->
-    <span class="text-sm text-neutral-500 dark:text-neutral-400 ">
+    <span class="text-sm text-neutral-500 dark:text-neutral-400">
       {{ isUnfollow ? 'unfollowed' : 'followed' }}
     </span>
 
@@ -21,8 +21,11 @@
       size="x-small"
     />
 
+    <!-- Spacer to push timestamp right -->
+    <div class="flex-1"></div>
+
     <!-- Timestamp -->
-    <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
+    <TimeStamp :timestamp="tx.blockTimestamp" />
   </CompactCard>
 </template>
 
@@ -62,7 +65,7 @@ const fromProfileUrl = computed(() => {
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-  return optimizeImageUrl(src, 24) // x-small ~ 24px
+  return optimizeImageUrl(src, 24)
 })
 
 const toIdentity = computed(() => getIdentity(targetAddress.value))
@@ -71,6 +74,6 @@ const toProfileUrl = computed(() => {
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
-  return optimizeImageUrl(src, 24) // x-small ~ 24px
+  return optimizeImageUrl(src, 24)
 })
 </script>
