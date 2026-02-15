@@ -2,7 +2,7 @@ import { ref, type Ref } from 'vue'
 import { fetchActivity } from '../lib/api'
 import type { Transaction } from '../lib/types'
 
-const MIN_VISIBLE = 50
+const MIN_VISIBLE = 25
 const MAX_AUTO_FETCHES = 20 // safety limit
 
 function sortTxs(data: Transaction[]): Transaction[] {
