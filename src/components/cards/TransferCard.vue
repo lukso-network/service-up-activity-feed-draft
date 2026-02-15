@@ -193,7 +193,7 @@ import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { fetchLikesBalance, fetchTokenName, resolveAddresses } from '../../lib/api'
+import { fetchLikesBalance, fetchTokenName } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -209,7 +209,6 @@ const detailsExpanded = ref(false)
 const receiverLikesCount = ref<string | null>(null)
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
-const envioImageUrl = ref<string | null>(null)
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
@@ -375,8 +374,6 @@ const likedAssetUrl = computed(() => {
 
 // NFT image for the liked asset (use images[] for artwork, icons[] as fallback)
 const receiverNftImageUrl = computed(() => {
-  // Try Envio fallback first (for unresolved moment addresses)
-  if (envioImageUrl.value) return envioImageUrl.value
   const identity = toIdentity.value
   // Prefer images (artwork) over icons
   const images = identity?.images
