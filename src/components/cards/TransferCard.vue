@@ -160,29 +160,29 @@
 
       <!-- Timestamp (right side) -->
       <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
-      <JsonExpandButton @toggle="jsonExpanded = !jsonExpanded" />
-    </div>
-    <div v-if="jsonExpanded" class="mt-3">
       <a
         :href="`https://explorer.lukso.network/tx/${tx.transactionHash}`"
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 mb-2"
+        class="flex-shrink-0 text-neutral-300 hover:text-blue-500 dark:text-neutral-600 dark:hover:text-blue-400 transition-colors"
+        title="View on Explorer"
       >
-        View on Explorer ↗
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+        </svg>
       </a>
-      <pre class="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed">{{ JSON.stringify(tx, null, 2) }}</pre>
     </div>
+    <TxDetails :tx="(tx as any)" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import ExtendedCard from './ExtendedCard.vue'
-import JsonExpandButton from '../shared/JsonExpandButton.vue'
+import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 
@@ -192,7 +192,6 @@ const props = defineProps<{
 }>()
 
 const { getIdentity, queueResolve } = useAddressResolver()
-const jsonExpanded = ref(false)
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
