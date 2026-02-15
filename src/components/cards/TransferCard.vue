@@ -23,19 +23,7 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <a
-        :href="`https://universaleverything.io/asset/${mintTokenContract}`"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
-      >
-        <div v-if="mintNftImageUrl" class="w-[140px] h-[140px] rounded-xl overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-800">
-          <img :src="mintNftImageUrl" class="w-full h-full object-cover" :alt="mintTokenName" />
-        </div>
-        <div class="flex flex-col gap-1 min-w-0">
-          <span class="text-sm font-bold text-neutral-800 dark:text-neutral-200 line-clamp-2">{{ mintTokenName }}</span>
-        </div>
-      </a>
+      <NftPreview :address="mintTokenContract" :chain-id="chainId" />
     </template>
   </ExtendedCard>
 
@@ -125,6 +113,45 @@
   </div>
 
   <!-- NFT card: token is NFT type (lsp4TokenType 1/2), or token sent to an NFT/asset -->
+  <!-- NFT token transfer (lsp4TokenType 1/2): sent NFT to a profile -->
+  <ExtendedCard v-else-if="isNftToken" :tx="(tx as any)">
+    <template #header>
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
+        sent
+        <a
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
+        </a>
+        to
+      </span>
+      <div class="basis-full h-0 sm:hidden"></div>
+      <ProfileBadge
+        v-if="receiver"
+        :address="receiver"
+        :name="toIdentity?.name"
+        :profile-url="toProfileUrl"
+        size="x-small"
+      />
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </template>
+    <template #content>
+      <NftPreview :address="tokenContractAddress" :chain-id="chainId" />
+    </template>
+  </ExtendedCard>
+
+  <!-- Liked with: tokens sent to a Forever Moments NFT -->
   <ExtendedCard v-else-if="isLikeAction" :tx="(tx as any)">
     <template #header>
       <ProfileBadge
@@ -135,7 +162,7 @@
       />
       <div class="basis-full h-0 sm:hidden"></div>
       <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
-        {{ isNftToken ? 'sent' : (isLikesTransfer ? 'liked with' : 'sent') }}
+        {{ isLikesTransfer ? 'liked with' : 'sent' }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
@@ -145,82 +172,11 @@
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
           <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
         </a>
-        <template v-if="isNftToken">to</template>
       </span>
-      <template v-if="isNftToken">
-        <div class="basis-full h-0 sm:hidden"></div>
-        <ProfileBadge
-          v-if="receiver"
-          :address="receiver"
-          :name="toIdentity?.name"
-          :profile-url="toProfileUrl"
-          size="x-small"
-        />
-      </template>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <a
-        :href="nftAssetUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
-      >
-        <!-- NFT image card -->
-        <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
-          <div class="relative">
-            <img
-              v-if="nftImageUrl"
-              :src="nftImageUrl"
-              class="w-[140px] h-[140px] object-cover"
-              :alt="nftName"
-              loading="lazy"
-            />
-            <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-              <lukso-profile
-                :profile-address="nftAddress"
-                has-identicon
-                size="x-large"
-              ></lukso-profile>
-            </div>
-          </div>
-          <!-- Address bar below image -->
-          <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-            <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(nftAddress) }}</span>
-          </div>
-        </div>
-        <!-- NFT details -->
-        <div class="flex flex-col gap-1.5 min-w-0 py-1">
-          <span v-if="!isNftToken && receiverCollectionName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
-            {{ receiverCollectionName }}
-          </span>
-          <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ nftName }}
-          </span>
-          <span v-if="isNftToken && !nftImageUrl" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
-            {{ shortenAddress(tokenContractAddress) }}
-          </span>
-          <!-- Creator info -->
-          <div v-if="receiverCreatorAddress" class="mt-1">
-            <span class="text-xs text-neutral-400 dark:text-neutral-500">Created by</span>
-            <div class="mt-1">
-              <ProfileBadge
-                :address="receiverCreatorAddress"
-                :name="creatorIdentity?.name"
-                :profile-url="creatorProfileUrl"
-                size="x-small"
-              />
-            </div>
-          </div>
-          <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
-            {{ shortenAddress(receiver) }}
-          </span>
-          <!-- LIKES count -->
-          <div v-if="receiverLikesCount && receiverLikesCount !== '0'" class="mt-2">
-            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ receiverLikesCount }} LIKES</span>
-          </div>
-        </div>
-      </a>
+      <FmMomentPreview :address="receiver" :chain-id="chainId" />
     </template>
   </ExtendedCard>
 
@@ -329,21 +285,22 @@
 import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
-import { formatLYX, shortenAddress, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
-import { fetchLikesBalance, fetchTokenName } from '../../lib/api'
+import { formatLYX, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
+import { fetchTokenName } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
+import NftPreview from '../shared/NftPreview.vue'
+import FmMomentPreview from '../shared/FmMomentPreview.vue'
 
 const props = defineProps<{
   tx: Transaction
   chainId: number
 }>()
 
-const { getIdentity, queueResolve } = useAddressResolver()
+const { getIdentity } = useAddressResolver()
 const detailsExpanded = ref(false)
-const receiverLikesCount = ref<string | null>(null)
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
 
@@ -423,22 +380,6 @@ const mintTokenIconUrl = computed(() => {
   if (!icons?.length) return ''
   const sorted = [...icons].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
-})
-
-// NFT mint: image from the token contract identity
-const mintNftImageUrl = computed(() => {
-  const identity = mintTokenIdentity.value
-  const images = identity?.images
-  if (images?.length) {
-    const sorted = [...images].sort((a, b) => a.width - b.width)
-    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-  }
-  const icons = identity?.icons
-  if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-  }
-  return ''
 })
 
 // ─── Batch detection: args are arrays for transferBatch ───
@@ -605,14 +546,12 @@ const receiverIsForeverMoment = computed(() => {
   return false
 })
 
+// "Liked with" = tokens sent to a Forever Moments NFT (not any random asset)
 const isLikeAction = computed(() => {
   if (isBatchTransfer.value) return false
+  if (isNftToken.value) return false // handled by isNftToken card above
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
-  // If the token itself is an NFT type (lsp4TokenType 1 or 2), always show NFT card
-  if (isNftToken.value) return true
-  // "Liked with" only for Forever Moments NFTs — not any random asset
-  if (receiverIsForeverMoment.value) return true
-  return false
+  return receiverIsForeverMoment.value
 })
 
 // Fetch Envio data for receiver (determines if it's an asset + gets moment details)
@@ -626,107 +565,10 @@ watch(() => receiver.value, (addr) => {
         if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
       }
     })
-    fetchLikesBalance(addr).then(count => {
-      if (count) receiverLikesCount.value = count
-    })
   }
 }, { immediate: true })
 
-const isForeverMoments = computed(() => {
-  if (envioCollectionName.value === 'Forever Moments') return true
-  const identity = toIdentity.value
-  return identity?.lsp4TokenName === 'Forever Moments' || false
-})
-
-const likedAssetUrl = computed(() =>
-  isForeverMoments.value
-    ? `https://www.forevermoments.life/moments/${receiver.value}`
-    : `https://universaleverything.io/asset/${receiver.value}`
-)
-
-// ─── NFT image: from token contract if isNftToken, otherwise from receiver ───
-const nftImageUrl = computed(() => {
-  if (isNftToken.value) {
-    // Token itself is NFT type — use token contract images
-    const identity = tokenContractIdentity.value
-    const images = identity?.images
-    if (images?.length) {
-      const sorted = [...images].sort((a, b) => a.width - b.width)
-      return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-    }
-    const icons = identity?.icons
-    if (icons?.length) {
-      const sorted = [...icons].sort((a, b) => a.width - b.width)
-      return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-    }
-    return ''
-  }
-  return receiverNftImageUrl.value
-})
-
-const nftName = computed(() => {
-  if (isNftToken.value) return tokenDisplayName.value
-  return receiverMomentName.value || receiverAssetSymbol.value || receiverAssetName.value || 'NFT'
-})
-
-const nftAssetUrl = computed(() => {
-  if (isNftToken.value) return `https://universaleverything.io/asset/${tokenContractAddress.value}`
-  return likedAssetUrl.value
-})
-
-const nftAddress = computed(() => {
-  if (isNftToken.value) return tokenContractAddress.value
-  return receiver.value
-})
-
-const receiverNftImageUrl = computed(() => {
-  const identity = toIdentity.value
-  const images = identity?.images
-  if (images?.length) {
-    const sorted = [...images].sort((a, b) => a.width - b.width)
-    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-  }
-  const icons = identity?.icons
-  if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
-    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
-  }
-  return ''
-})
-
-const receiverMomentName = computed(() => toIdentity.value?.name || envioMomentName.value || '')
-
-const receiverCollectionName = computed(() => {
-  const collection = toIdentity.value?.lsp4TokenName || envioCollectionName.value || ''
-  const moment = receiverMomentName.value
-  return (collection && moment && collection !== moment) ? collection : ''
-})
-
-const receiverAssetSymbol = computed(() => toIdentity.value?.lsp4TokenSymbol || '')
-
-// ─── Creator info ───
-const receiverCreatorAddress = computed(() => {
-  const identity = toIdentity.value
-  const creators = (identity as any)?.lsp4Creators
-  if (creators?.length) return creators[0].profile_id || creators[0].address || ''
-  return identity?.owner_id || ''
-})
-
-const creatorIdentity = computed(() => {
-  const addr = receiverCreatorAddress.value
-  if (!addr) return undefined
-  const identity = getIdentity(addr)
-  if (!identity) queueResolve(props.chainId, [addr])
-  return identity
-})
-
-const creatorProfileUrl = computed(() => {
-  const images = creatorIdentity.value?.profileImages
-  if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
-  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
-})
-
+// (NFT preview + creator + LIKES count handled by NftPreview / FmMomentPreview components)
 // ─── Amount formatting ───
 const formattedAmount = computed(() => {
   if (transferType.value === 'lyx') return formatLYX(props.tx.value || '0')
