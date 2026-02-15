@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen">
+  <div class="min-h-screen overflow-x-hidden">
     <!-- Refresh bar -->
     <div
       v-if="newTxCount > 0"
