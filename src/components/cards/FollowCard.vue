@@ -2,7 +2,7 @@
   <CompactCard :tx="(tx as any)">
     <!-- Actor -->
     <ProfileBadge
-      :address="tx.from"
+      :address="actorAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
       size="x-small"
@@ -51,6 +51,16 @@ const isUnfollow = computed(() => {
   return fn.includes('unfollow')
 })
 
+// Actor: derive from Executed event (emitted by the UP), not tx.from (could be controller)
+const actorAddress = computed(() => {
+  const logs = props.tx.logs
+  if (logs?.length) {
+    const executed = logs.find((l: any) => l.eventName === 'Executed')
+    if (executed?.address) return executed.address
+  }
+  return props.tx.from
+})
+
 const targetAddress = computed(() => {
   const args = props.tx.args
   if (args) {
@@ -61,7 +71,7 @@ const targetAddress = computed(() => {
   return props.tx.to
 })
 
-const fromIdentity = computed(() => getIdentity(props.tx.from))
+const fromIdentity = computed(() => getIdentity(actorAddress.value))
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
