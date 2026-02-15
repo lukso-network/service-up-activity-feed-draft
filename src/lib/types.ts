@@ -36,6 +36,8 @@ export interface Transaction {
   args?: TransactionArg[]
   phase?: string
   logs: TransactionLog[]
+  children?: any[]
+  wrappers?: any[]
   // Enhanced fields added by finishDecoding
   fromName?: string
   fromImage?: string
