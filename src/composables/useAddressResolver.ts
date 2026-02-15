@@ -38,23 +38,29 @@ export function useAddressResolver() {
       for (const [addr, identity] of Object.entries(res.addressIdentities)) {
         cache[addr.toLowerCase()] = identity
       }
-      // For addresses that resolved but have no name (UnknownContract etc.),
-      // try fetching LSP4Metadata directly from on-chain
+      // For addresses that have no name, try fetching LSP4Metadata from on-chain
       for (const addr of addresses) {
         const lower = addr.toLowerCase()
         const identity = cache[lower]
-        if (identity && !identity.lsp4TokenName && !identity.name && !lsp4Pending.has(lower)) {
-          lsp4Pending.add(lower)
-          fetchLSP4Metadata(addr).then(meta => {
-            if (meta) {
-              // Merge on-chain metadata into the cached identity
-              if (meta.lsp4TokenName) cache[lower].lsp4TokenName = meta.lsp4TokenName
-              if (meta.description) cache[lower].description = meta.description
-              if (meta.icons?.length) cache[lower].icons = meta.icons
-              if (meta.images?.length) cache[lower].images = meta.images
-            }
-          })
+        // Skip if already has a name, or if we already tried on-chain fetch
+        if (lsp4Pending.has(lower)) continue
+        const hasName = identity?.lsp4TokenName || identity?.name
+        if (hasName) continue
+
+        lsp4Pending.add(lower)
+        // Create a placeholder entry if resolve API didn't return one
+        if (!identity) {
+          cache[lower] = { address: lower } as AddressIdentity
         }
+        fetchLSP4Metadata(addr).then(meta => {
+          if (meta) {
+            const cached = cache[lower]
+            if (meta.lsp4TokenName) cached.lsp4TokenName = meta.lsp4TokenName
+            if (meta.description) cached.description = meta.description
+            if (meta.icons?.length && !cached.icons?.length) cached.icons = meta.icons
+            if (meta.images?.length && !cached.images?.length) cached.images = meta.images
+          }
+        })
       }
     } catch {
       // Silently fail - addresses just won't be resolved
