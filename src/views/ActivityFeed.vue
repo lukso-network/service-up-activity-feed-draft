@@ -33,7 +33,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useActivity } from '../composables/useActivity'
 import { useAddressResolver } from '../composables/useAddressResolver'
-import type { AddressIdentity } from '../lib/types'
+import type { AddressIdentity, Transaction } from '../lib/types'
 import { resolveAddresses } from '../lib/api'
 import { classifyTransaction } from '../lib/formatters'
 import TransactionList from '../components/TransactionList.vue'
@@ -48,7 +48,6 @@ const address = computed(() => (route.params.address as string) || '')
 const chainIdRef = computed(() => chainId.value)
 const addressRef = computed(() => address.value)
 
-const { transactions, loading, loadingMore, error, hasMore, load, loadMore, pollNew } = useActivity(chainIdRef, addressRef)
 const { queueResolve } = useAddressResolver()
 
 const profile = ref<AddressIdentity>()
@@ -59,14 +58,20 @@ let pollInterval: ReturnType<typeof setInterval> | null = null
 
 const devMode = computed(() => route.query.devmode !== undefined)
 
+function txFilter(tx: Transaction): boolean {
+  if (tx.status === 0) return false
+  const { type } = classifyTransaction(tx)
+  if (type === 'contract_execution' || type === 'unknown') return false
+  return true
+}
+
+// Pass filter to useActivity so it auto-fetches until enough visible txs
+const filterRef = computed(() => devMode.value ? null : txFilter)
+const { transactions, loading, loadingMore, error, hasMore, load, loadMore, pollNew } = useActivity(chainIdRef, addressRef, filterRef)
+
 const visibleTransactions = computed(() => {
   if (devMode.value) return transactions.value
-  return transactions.value.filter(tx => {
-    if (tx.status === 0) return false
-    const { type } = classifyTransaction(tx)
-    if (type === 'contract_execution' || type === 'unknown') return false
-    return true
-  })
+  return transactions.value.filter(txFilter)
 })
 
 function showNewTransactions() {

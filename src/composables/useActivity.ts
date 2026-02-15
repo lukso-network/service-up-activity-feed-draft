@@ -2,7 +2,23 @@ import { ref, type Ref } from 'vue'
 import { fetchActivity } from '../lib/api'
 import type { Transaction } from '../lib/types'
 
-export function useActivity(chainId: Ref<number>, address: Ref<string>) {
+const MIN_VISIBLE = 50
+const MAX_AUTO_FETCHES = 20 // safety limit
+
+function sortTxs(data: Transaction[]): Transaction[] {
+  return [...data].sort((a, b) => {
+    const tsA = a.blockTimestamp || 0
+    const tsB = b.blockTimestamp || 0
+    if (tsB !== tsA) return tsB - tsA
+    return (b.transactionIndex || 0) - (a.transactionIndex || 0)
+  })
+}
+
+export function useActivity(
+  chainId: Ref<number>,
+  address: Ref<string>,
+  filterFn?: Ref<((tx: Transaction) => boolean) | null>
+) {
   const transactions = ref<Transaction[]>([])
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -11,26 +27,38 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
   const nextToBlock = ref<number | null>(null)
   const latestBlockNumber = ref<number>(0)
 
+  function countVisible(): number {
+    if (!filterFn?.value) return transactions.value.length
+    return transactions.value.filter(filterFn.value).length
+  }
+
+  async function fetchMoreUntilFull() {
+    let fetches = 0
+    while (countVisible() < MIN_VISIBLE && hasMore.value && nextToBlock.value && fetches < MAX_AUTO_FETCHES) {
+      fetches++
+      const res = await fetchActivity(chainId.value, address.value, {
+        toBlock: nextToBlock.value,
+      })
+      transactions.value = [...transactions.value, ...sortTxs(res.data)]
+      hasMore.value = res.pagination.hasMore
+      nextToBlock.value = res.pagination.nextToBlock
+      if (!res.data.length) break
+    }
+  }
+
   async function load() {
     loading.value = true
     error.value = null
     try {
       const res = await fetchActivity(chainId.value, address.value)
-      transactions.value = res.data.sort((a, b) => {
-        // Sort by blockTimestamp (actual tx time), newest first
-        const tsA = a.blockTimestamp || 0
-        const tsB = b.blockTimestamp || 0
-        if (tsB !== tsA) return tsB - tsA
-        // Same timestamp: sort by transactionIndex descending
-        const idxA = a.transactionIndex || 0
-        const idxB = b.transactionIndex || 0
-        return idxB - idxA
-      })
+      transactions.value = sortTxs(res.data)
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       if (res.data.length > 0) {
         latestBlockNumber.value = parseInt(res.data[0].blockNumber)
       }
+      // Auto-fetch more if too few visible transactions
+      await fetchMoreUntilFull()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load activity'
     } finally {
@@ -45,15 +73,11 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      const sorted = res.data.sort((a, b) => {
-        const tsA = a.blockTimestamp || 0
-        const tsB = b.blockTimestamp || 0
-        if (tsB !== tsA) return tsB - tsA
-        return (b.transactionIndex || 0) - (a.transactionIndex || 0)
-      })
-      transactions.value = [...transactions.value, ...sorted]
+      transactions.value = [...transactions.value, ...sortTxs(res.data)]
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
+      // Keep fetching if still not enough visible
+      await fetchMoreUntilFull()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load more'
     } finally {
