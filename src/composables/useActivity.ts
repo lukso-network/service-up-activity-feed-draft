@@ -14,6 +14,15 @@ function sortTxs(data: Transaction[]): Transaction[] {
   })
 }
 
+function dedup(txs: Transaction[]): Transaction[] {
+  const seen = new Set<string>()
+  return txs.filter(tx => {
+    if (seen.has(tx.transactionHash)) return false
+    seen.add(tx.transactionHash)
+    return true
+  })
+}
+
 export function useActivity(
   chainId: Ref<number>,
   address: Ref<string>,
@@ -39,7 +48,7 @@ export function useActivity(
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      transactions.value = [...transactions.value, ...sortTxs(res.data)]
+      transactions.value = dedup([...transactions.value, ...sortTxs(res.data)])
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       if (!res.data.length) break
@@ -51,7 +60,7 @@ export function useActivity(
     error.value = null
     try {
       const res = await fetchActivity(chainId.value, address.value)
-      transactions.value = sortTxs(res.data)
+      transactions.value = dedup(sortTxs(res.data))
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       if (res.data.length > 0) {
@@ -73,7 +82,7 @@ export function useActivity(
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      transactions.value = [...transactions.value, ...sortTxs(res.data)]
+      transactions.value = dedup([...transactions.value, ...sortTxs(res.data)])
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       // Keep fetching if still not enough visible
@@ -92,7 +101,7 @@ export function useActivity(
         fromBlock: latestBlockNumber.value + 1,
       })
       if (res.data.length > 0) {
-        transactions.value = [...res.data, ...transactions.value]
+        transactions.value = dedup([...res.data, ...transactions.value])
         latestBlockNumber.value = parseInt(res.data[0].blockNumber)
       }
     } catch {

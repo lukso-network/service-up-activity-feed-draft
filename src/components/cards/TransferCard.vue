@@ -124,7 +124,7 @@
     <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
   </div>
 
-  <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
+  <!-- NFT card: token is NFT type (lsp4TokenType 1/2), or token sent to an NFT/asset -->
   <ExtendedCard v-else-if="isLikeAction" :tx="(tx as any)">
     <template #header>
       <div class="flex items-center gap-2">
@@ -134,7 +134,9 @@
           :profile-url="fromProfileUrl"
           size="x-small"
         />
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">{{ isLikesTransfer ? 'liked with' : 'sent' }}</span>
+        <span class="text-sm text-neutral-500 dark:text-neutral-400">
+          {{ isNftToken ? 'sent' : (isLikesTransfer ? 'liked with' : 'sent') }}
+        </span>
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
@@ -144,12 +146,25 @@
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
           <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
         </a>
+        <template v-if="!isNftToken">
+          <!-- Show "to" receiver for liked-with cards -->
+        </template>
+        <template v-else>
+          to
+          <ProfileBadge
+            v-if="receiver"
+            :address="receiver"
+            :name="toIdentity?.name"
+            :profile-url="toProfileUrl"
+            size="x-small"
+          />
+        </template>
       </div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
       <a
-        :href="likedAssetUrl"
+        :href="nftAssetUrl"
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
@@ -158,15 +173,15 @@
         <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
           <div class="relative">
             <img
-              v-if="receiverNftImageUrl"
-              :src="receiverNftImageUrl"
+              v-if="nftImageUrl"
+              :src="nftImageUrl"
               class="w-[140px] h-[140px] object-cover"
-              :alt="receiverAssetName"
+              :alt="nftName"
               loading="lazy"
             />
             <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
               <lukso-profile
-                :profile-address="receiver"
+                :profile-address="nftAddress"
                 has-identicon
                 size="x-large"
               ></lukso-profile>
@@ -174,19 +189,19 @@
           </div>
           <!-- Address bar below image -->
           <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-            <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(receiver) }}</span>
+            <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(nftAddress) }}</span>
           </div>
         </div>
         <!-- NFT details -->
         <div class="flex flex-col gap-1.5 min-w-0 py-1">
-          <span v-if="receiverCollectionName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
+          <span v-if="!isNftToken && receiverCollectionName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
             {{ receiverCollectionName }}
           </span>
           <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ receiverMomentName || receiverAssetSymbol || receiverAssetName || 'NFT' }}
+            {{ nftName }}
           </span>
-          <span v-if="!receiverMomentName && !receiverAssetSymbol && !receiverAssetName" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
-            {{ shortenAddress(receiver) }}
+          <span v-if="isNftToken && !nftImageUrl" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+            {{ shortenAddress(tokenContractAddress) }}
           </span>
           <!-- Creator info -->
           <div v-if="receiverCreatorAddress" class="mt-1">
@@ -577,14 +592,22 @@ const isLikesTransfer = computed(() =>
   tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
 )
 
-// ─── NFT preview: show when receiver is an NFT/asset (lsp4TokenType 1 or 2), not a profile ───
+// ─── Token type from the token contract being transferred ───
+// lsp4TokenType: 0=Token (currency), 1=NFT, 2=Collection
+// If 1 or 2, show as NFT card regardless of who the receiver is
+const isNftToken = computed(() => {
+  const tokenType = tokenContractIdentity.value?.lsp4TokenType
+  return tokenType === 1 || tokenType === 2
+})
+
+// ─── NFT preview card: either token is NFT type, or receiver is an NFT/asset ───
 const isLikeAction = computed(() => {
-  if (isBatchTransfer.value) return false // batch transfers never show as "liked"
+  if (isBatchTransfer.value) return false // batch transfers get their own card
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
+  // If the token itself is an NFT type (lsp4TokenType 1 or 2), always show NFT card
+  if (isNftToken.value) return true
+  // Otherwise check if receiver is an NFT/asset (e.g. sending LIKES to a Forever Moment)
   if (receiverIsProfile.value) return false
-  // Use lsp4TokenType if available: 0=Token (never "like"), 1=NFT, 2=Collection
-  const receiverTokenType = toIdentity.value?.lsp4TokenType
-  if (receiverTokenType === 0) return false // it's a token, not an NFT
   if (receiverIsAsset.value) return true
   if (envioMomentName.value || envioCollectionName.value) return true
   return false
@@ -619,7 +642,41 @@ const likedAssetUrl = computed(() =>
     : `https://universaleverything.io/asset/${receiver.value}`
 )
 
-// ─── NFT image for liked asset ───
+// ─── NFT image: from token contract if isNftToken, otherwise from receiver ───
+const nftImageUrl = computed(() => {
+  if (isNftToken.value) {
+    // Token itself is NFT type — use token contract images
+    const identity = tokenContractIdentity.value
+    const images = identity?.images
+    if (images?.length) {
+      const sorted = [...images].sort((a, b) => a.width - b.width)
+      return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+    }
+    const icons = identity?.icons
+    if (icons?.length) {
+      const sorted = [...icons].sort((a, b) => a.width - b.width)
+      return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+    }
+    return ''
+  }
+  return receiverNftImageUrl.value
+})
+
+const nftName = computed(() => {
+  if (isNftToken.value) return tokenDisplayName.value
+  return receiverMomentName.value || receiverAssetSymbol.value || receiverAssetName.value || 'NFT'
+})
+
+const nftAssetUrl = computed(() => {
+  if (isNftToken.value) return `https://universaleverything.io/asset/${tokenContractAddress.value}`
+  return likedAssetUrl.value
+})
+
+const nftAddress = computed(() => {
+  if (isNftToken.value) return tokenContractAddress.value
+  return receiver.value
+})
+
 const receiverNftImageUrl = computed(() => {
   const identity = toIdentity.value
   const images = identity?.images
