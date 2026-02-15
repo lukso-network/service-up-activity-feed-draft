@@ -11,9 +11,9 @@
     <script>
       // GitHub Pages SPA redirect pickup
       (function(){
-        var redirect = sessionStorage.redirect
-        delete sessionStorage.redirect
-        if (redirect && redirect !== location.href) {
+        var params = new URLSearchParams(window.location.search)
+        var redirect = params.get('_spa_redirect')
+        if (redirect) {
           history.replaceState(null, '', redirect)
         }
       })()

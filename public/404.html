@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <script>
       // GitHub Pages SPA redirect
-      // Stores the path in sessionStorage and redirects to /
-      // index.html picks it up and uses replaceState
-      sessionStorage.redirect = location.href
-      location.replace('/')
+      // Encodes the path+hash into a query param so it survives the redirect to /
+      var loc = window.location
+      var path = loc.pathname + loc.search + loc.hash
+      loc.replace(loc.origin + '/?_spa_redirect=' + encodeURIComponent(path))
     </script>
   </head>
   <body></body>
