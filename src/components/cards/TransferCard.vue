@@ -11,7 +11,7 @@
         />
         <span class="text-sm text-neutral-500 dark:text-neutral-400">{{ isLikesTransfer ? 'liked with' : 'sent' }}</span>
         <a
-          :href="`https://universaleverything.io/asset/${tx.to}`"
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
@@ -121,7 +121,7 @@
         <template v-else-if="transferType === 'lsp7'">
           Sent
           <a
-            :href="`https://universaleverything.io/asset/${tx.to}`"
+            :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
@@ -134,7 +134,7 @@
         <template v-else>
           Sent
           <a
-            :href="`https://universaleverything.io/asset/${tx.to}`"
+            :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
@@ -523,9 +523,21 @@ const tokenAmount = computed(() => {
 })
 
 // Token contract identity (tx.to is the token contract for LSP7/LSP8)
+// Token contract address: prefer Transfer event log emitter (correct for wrapped/batch txs)
+const tokenContractAddress = computed(() => {
+  const logs = props.tx.logs
+  if (logs?.length) {
+    const transferLog = logs.find((l: any) =>
+      l.eventName === 'Transfer' && l.args?.some((a: any) => a.name === 'amount')
+    )
+    if (transferLog?.address) return transferLog.address
+  }
+  return props.tx.to
+})
+
 const tokenContractIdentity = computed(() => {
   if (transferType.value === 'lyx') return undefined
-  return getIdentity(props.tx.to)
+  return getIdentity(tokenContractAddress.value)
 })
 
 const tokenDecimals = computed(() => {
