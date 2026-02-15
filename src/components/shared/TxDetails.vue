@@ -64,6 +64,12 @@
         </svg>
         <span>{{ showRaw ? 'Hide' : 'Show' }} Raw JSON</span>
       </button>
+      <button
+        @click="copyRawJson"
+        class="ml-3 text-xs text-neutral-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+      >
+        {{ copied ? '✓ Copied' : '📋 Copy JSON' }}
+      </button>
       <pre
         v-if="showRaw"
         class="mt-2 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed"
@@ -75,11 +81,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   tx: Record<string, unknown>
 }>()
 
 const showRaw = ref(false)
+const copied = ref(false)
+
+function copyRawJson() {
+  navigator.clipboard.writeText(JSON.stringify(props.tx, null, 2)).then(() => {
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  })
+}
 
 function formatNumber(val: unknown): string {
   const str = String(val).replace('n', '')
