@@ -318,16 +318,17 @@ const toProfileUrl = computed(() => {
 })
 
 // Detect "like" action: LIKES token sent to an NFT/asset contract
+const LIKES_TOKEN = '0x403bfd53617555295347e0f7725cfda480ab801e'
+
 const isLikeAction = computed(() => {
   if (transferType.value !== 'lsp7') return false
-  // Check if the token is LIKES (by symbol)
-  const tokenSymbol = tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase()
-  if (tokenSymbol !== 'LIKES') return false
-  // Receiver is an asset, OR receiver is unknown (not a profile with a name)
-  // FM moment contracts often don't resolve in the API
-  const identity = toIdentity.value
+  // Check if token contract is LIKES (by address or symbol)
+  const isLikesToken = props.tx.to?.toLowerCase() === LIKES_TOKEN ||
+    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
+  if (!isLikesToken) return false
+  // Receiver is an asset, OR receiver is unknown (not a profile with a name/images)
   if (receiverIsAsset.value) return true
-  // If receiver has no identity or no profile name/images, it's likely an asset
+  const identity = toIdentity.value
   if (!identity || (!identity.name && !identity.profileImages?.length)) return true
   return false
 })
