@@ -29,20 +29,33 @@
         rel="noopener noreferrer"
         class="flex items-center gap-4 hover:opacity-90 transition-opacity no-underline"
       >
-        <lukso-card
-          variant="basic"
-          :background-url="receiverNftImageUrl || ''"
-          width="120"
-          height="120"
-          border-radius="medium"
-          shadow="small"
-        ></lukso-card>
+        <!-- NFT image -->
+        <div v-if="receiverNftImageUrl" class="flex-shrink-0">
+          <lukso-card
+            variant="basic"
+            :background-url="receiverNftImageUrl"
+            width="120"
+            height="120"
+            border-radius="medium"
+            shadow="small"
+          ></lukso-card>
+        </div>
+        <div v-else-if="receiverIconUrl" class="flex-shrink-0">
+          <img :src="receiverIconUrl" class="w-16 h-16 rounded-xl object-cover" :alt="receiverAssetName" />
+        </div>
+        <div v-else class="flex-shrink-0 w-16 h-16 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+          <span class="text-2xl">🖼️</span>
+        </div>
+        <!-- NFT info -->
         <div class="flex flex-col gap-1 min-w-0">
           <span class="text-base font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ receiverAssetName || 'NFT' }}
+            {{ receiverAssetName || shortenAddress(receiver) }}
           </span>
           <span v-if="receiverAssetDescription" class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2">
             {{ receiverAssetDescription }}
+          </span>
+          <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+            {{ shortenAddress(receiver) }}
           </span>
         </div>
       </a>
@@ -132,7 +145,7 @@
 import { computed } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
-import { formatLYX } from '../../lib/formatters'
+import { formatLYX, shortenAddress } from '../../lib/formatters'
 import CompactCard from './CompactCard.vue'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -225,10 +238,10 @@ const receiverIsAsset = computed(() => {
 
 const receiverAssetName = computed(() => {
   const identity = toIdentity.value
-  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
   if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
   if (identity?.name) return identity.name
-  return 'Token'
+  return ''
 })
 
 const receiverIconUrl = computed(() => {
@@ -316,11 +329,11 @@ const tokenDecimals = computed(() => {
 })
 
 
-// Display name: prefer full token name for readability, fall back to symbol
+// Display name: use symbol for compact display
 const tokenDisplayName = computed(() => {
   const identity = tokenContractIdentity.value
-  if (identity?.lsp4TokenName) return identity.lsp4TokenName
   if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
   if (identity?.name) return identity.name
   if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
   return transferType.value === 'lsp8' ? 'NFT' : 'Token'
