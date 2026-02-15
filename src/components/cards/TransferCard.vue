@@ -295,10 +295,24 @@ const toProfileUrl = computed(() => {
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
-// ─── Token contract: tx.to is always the token contract (API unwraps KM/UP layers) ───
+// ─── Token contract: from Transfer event (emitted by the actual token contract) ───
 const LIKES_TOKEN = '0x403bfd53617555295347e0f7725cfda480ab801e'
 
-const tokenContractAddress = computed(() => props.tx.to)
+const tokenContractAddress = computed(() => {
+  const logs = props.tx.logs
+  if (logs?.length) {
+    // Transfer event is emitted by the token contract itself
+    const transferLog = logs.find((l: any) => l.eventName === 'Transfer')
+    if (transferLog?.address) return transferLog.address
+    // Fallback: Executed event target (the contract the UP called)
+    const executedLog = logs.find((l: any) => l.eventName === 'Executed')
+    if (executedLog?.args) {
+      const target = executedLog.args.find((a: any) => a.name === 'target')
+      if (target?.value && typeof target.value === 'string') return target.value
+    }
+  }
+  return props.tx.to
+})
 
 const tokenContractIdentity = computed(() => {
   if (transferType.value === 'lyx') return undefined
