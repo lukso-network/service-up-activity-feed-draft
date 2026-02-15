@@ -2,8 +2,8 @@
   <div class="space-y-3 p-4">
     <TransitionGroup name="tx-list">
       <div
-        v-for="tx in transactions"
-        :key="tx.transactionHash"
+        v-for="tx in flattenedTransactions"
+        :key="(tx as any)._virtualKey || tx.transactionHash"
       >
         <component
           :is="getCardComponent(tx)"
@@ -47,8 +47,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Component } from 'vue'
 import type { Transaction } from '../lib/types'
+import { useAddressResolver } from '../composables/useAddressResolver'
 import { classifyTransaction } from '../lib/formatters'
 import TransferCard from './cards/TransferCard.vue'
 import FollowCard from './cards/FollowCard.vue'
@@ -58,7 +60,7 @@ import PermissionCard from './cards/PermissionCard.vue'
 import GenericCard from './cards/GenericCard.vue'
 import MomentCard from './cards/MomentCard.vue'
 
-defineProps<{
+const props = defineProps<{
   transactions: Transaction[]
   chainId: number
   profileAddress: string
@@ -68,6 +70,67 @@ defineProps<{
 }>()
 
 defineEmits<{ loadMore: [] }>()
+
+const { getIdentity } = useAddressResolver()
+
+/**
+ * Flatten batch transfers to FM NFTs into individual virtual transactions.
+ * A transferBatch where recipients are Forever Moments NFTs (Assets, not Profiles)
+ * gets split into separate "liked with" cards.
+ *
+ * Detection: recipients resolve as __gqltype="Asset" (not "Profile").
+ * This is reactive — re-evaluates when address identities resolve.
+ */
+const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'
+
+const flattenedTransactions = computed(() => {
+  const result: (Transaction & { _virtualKey?: string })[] = []
+  for (const tx of props.transactions) {
+    const toArg = tx.args?.find(a => a.name === 'to')
+    const amountArg = tx.args?.find(a => a.name === 'amount')
+    const fromArg = tx.args?.find(a => a.name === 'from')
+    
+    if (tx.functionName === 'transferBatch' && 
+        Array.isArray(toArg?.value) && Array.isArray(amountArg?.value)) {
+      const toArr = toArg!.value as string[]
+      const amountArr = amountArg!.value as unknown[]
+      const fromArr = Array.isArray(fromArg?.value) ? fromArg!.value as string[] : []
+      
+      // Check: is this LIKES being sent to Assets (FM NFTs)?
+      // For transferBatch, tx.to IS the token contract
+      const tokenAddr = tx.to?.toLowerCase() || ''
+      const isLikesBatch = tokenAddr === LIKES_CONTRACT
+      
+      // Check if recipients are Assets (resolved)
+      const recipientsAreAssets = isLikesBatch && toArr.some(addr => {
+        const identity = getIdentity(String(addr))
+        return identity && (identity as any).__gqltype === 'Asset'
+      })
+      
+      if (recipientsAreAssets) {
+        // Split into individual virtual transactions → each renders as "liked with"
+        for (let i = 0; i < toArr.length; i++) {
+          const virtualTx: Transaction & { _virtualKey?: string } = {
+            ...tx,
+            _virtualKey: `${tx.transactionHash}-${i}`,
+            args: [
+              { name: 'from', internalType: 'address', type: 'address', value: fromArr[i] || fromArr[0] || tx.from },
+              { name: 'to', internalType: 'address', type: 'address', value: String(toArr[i]) },
+              { name: 'amount', internalType: 'uint256', type: 'uint256', value: amountArr[i] },
+              { name: 'force', internalType: 'bool', type: 'bool', value: false },
+              { name: 'data', internalType: 'bytes', type: 'bytes', value: '0x' },
+            ],
+            functionName: 'transfer',
+          }
+          result.push(virtualTx)
+        }
+        continue
+      }
+    }
+    result.push(tx)
+  }
+  return result
+})
 
 function getCardComponent(tx: Transaction): Component {
   const { type } = classifyTransaction(tx)
