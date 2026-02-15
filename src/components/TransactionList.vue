@@ -46,6 +46,7 @@ import ProfileUpdateCard from './cards/ProfileUpdateCard.vue'
 import PermissionCard from './cards/PermissionCard.vue'
 import GenericCard from './cards/GenericCard.vue'
 import MomentCard from './cards/MomentCard.vue'
+import TokenUpdateCard from './cards/TokenUpdateCard.vue'
 
 const props = defineProps<{
   transactions: Transaction[]
@@ -158,6 +159,8 @@ function getCardComponent(tx: Transaction): Component {
       return MomentCard
     case 'profile_update':
       return ProfileUpdateCard
+    case 'token_metadata_update':
+      return TokenUpdateCard
     case 'permission_change':
       return PermissionCard
     case 'contract_execution':

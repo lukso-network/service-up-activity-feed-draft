@@ -163,8 +163,29 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
-  // Profile update (ERC725Y setData)
+  // setData — check data keys to distinguish profile update vs token metadata update
   if (fn.includes('setdata') || fn.includes('setdatabatch')) {
+    const LSP4_METADATA_KEY = '0x9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e'
+    // Check if any data key is LSP4Metadata (token metadata, not profile)
+    const args = tx.args || []
+    let hasLSP4 = false
+    for (const arg of args) {
+      if (arg.name === 'dataKey' || arg.name === 'dataKeys' || arg.name === 'key') {
+        const val = arg.value
+        const keys = typeof val === 'string' ? [val] : Array.isArray(val) ? val : []
+        for (const key of keys) {
+          if (String(key).toLowerCase() === LSP4_METADATA_KEY.toLowerCase()) hasLSP4 = true
+        }
+      }
+    }
+    if (hasLSP4) {
+      return {
+        type: 'token_metadata_update',
+        label: 'Token Metadata Update',
+        icon: '🪙',
+        color: 'text-amber-500',
+      }
+    }
     return {
       type: 'profile_update',
       label: 'Profile Update',
