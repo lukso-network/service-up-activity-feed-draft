@@ -9,7 +9,7 @@
     />
 
     <!-- Action text -->
-    <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 ">
       {{ actionText }}
     </span>
 

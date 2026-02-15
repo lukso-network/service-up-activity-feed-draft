@@ -107,7 +107,7 @@
       />
 
       <!-- Action text -->
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap flex items-center gap-1">
+      <span class="text-sm text-neutral-500 dark:text-neutral-400  flex items-center gap-1">
         <template v-if="transferType === 'lyx'">
           Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
         </template>
