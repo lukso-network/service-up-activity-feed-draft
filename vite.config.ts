@@ -11,5 +11,5 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/service-up-activity-feed-draft/',
+  base: '/',
 })
