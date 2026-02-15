@@ -1,16 +1,15 @@
 <template>
   <ExtendedCard :tx="(tx as any)">
     <template #header>
-      <div class="flex items-center gap-2">
-        <ProfileBadge
-          :address="actorAddress"
-          :name="actorIdentity?.name"
-          :profile-url="actorProfileUrl"
-          size="x-small"
-        />
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">created a new moment</span>
-        <span class="text-base">📸</span>
-      </div>
+      <ProfileBadge
+        :address="actorAddress"
+        :name="actorIdentity?.name"
+        :profile-url="actorProfileUrl"
+        size="x-small"
+      />
+      <span class="text-sm text-neutral-500 dark:text-neutral-400">created a new moment</span>
+      <span class="text-base">📸</span>
+      <div class="flex-1"></div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>

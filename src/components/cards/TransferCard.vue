@@ -2,24 +2,23 @@
   <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
   <ExtendedCard v-if="isLikeAction" :tx="(tx as any)">
     <template #header>
-      <div class="flex items-center gap-2">
-        <ProfileBadge
-          :address="senderAddress"
-          :name="fromIdentity?.name"
-          :profile-url="fromProfileUrl"
-          size="x-small"
-        />
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">liked with</span>
-        <a
-          :href="`https://universaleverything.io/asset/${tx.to}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >
-          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-          <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
-        </a>
-      </div>
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+      <span class="text-sm text-neutral-500 dark:text-neutral-400">liked with</span>
+      <a
+        :href="`https://universaleverything.io/asset/${tx.to}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+      >
+        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+        <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
+      </a>
+      <div class="flex-1"></div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>

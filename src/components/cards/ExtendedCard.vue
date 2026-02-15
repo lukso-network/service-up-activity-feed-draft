@@ -1,8 +1,9 @@
 <template>
   <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4 overflow-hidden max-w-full">
     <!-- Header: actor profile + timestamp + chevron -->
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-2 flex-wrap mb-3">
       <slot name="header" />
+      <div class="flex-1"></div>
       <button
         v-if="tx"
         @click="expanded = !expanded"
