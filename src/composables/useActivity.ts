@@ -12,7 +12,6 @@ export function useActivity(chainId: Ref<number>, address: Ref<string>) {
   const latestBlockNumber = ref<number>(0)
 
   async function load() {
-    if (!address.value) return
     loading.value = true
     error.value = null
     try {

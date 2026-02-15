@@ -10,6 +10,11 @@ const router = createRouter({
       component: ActivityFeed,
     },
     {
+      path: '/:chainId',
+      name: 'global-activity',
+      component: ActivityFeed,
+    },
+    {
       path: '/',
       redirect: '/42/0xcdec110f9c255357e37f46cd2687be1f7e9b02f7',
     },

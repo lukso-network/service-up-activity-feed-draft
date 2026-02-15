@@ -40,7 +40,8 @@ export async function fetchActivity(
   address: string,
   options?: { toBlock?: number; fromBlock?: number }
 ): Promise<ActivityResponse> {
-  const body: Record<string, unknown> = { chainId, address }
+  const body: Record<string, unknown> = { chainId }
+  if (address) body.address = address
   if (options?.toBlock) body.toBlock = options.toBlock
   if (options?.fromBlock) body.fromBlock = options.fromBlock
   return post<ActivityResponse>('/api/activity', body)
