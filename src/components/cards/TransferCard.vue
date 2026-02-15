@@ -24,7 +24,7 @@
     </template>
     <template #content>
       <a
-        :href="`https://universaleverything.io/asset/${receiver}`"
+        :href="likedAssetUrl"
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
@@ -291,6 +291,24 @@ const isLikeAction = computed(() => {
   if (tokenSymbol !== 'LIKES') return false
   // Receiver must be an asset, not a profile
   return receiverIsAsset.value
+})
+
+// Detect Forever Moments posts: ERC725Y contracts that aren't LSP7/LSP8 tokens
+const isForeverMoments = computed(() => {
+  const identity = toIdentity.value
+  if (!identity) return false
+  // Not a known token standard, but has data (resolved with owner/creator)
+  return !identity.isLSP7 &&
+    !identity.standard?.includes('LSP7') &&
+    !identity.standard?.includes('LSP8') &&
+    (identity.standard === 'UnknownContract' || identity.__gqltype === 'Asset' || !identity.standard)
+})
+
+const likedAssetUrl = computed(() => {
+  if (isForeverMoments.value) {
+    return `https://www.forevermoments.life/moments/${receiver.value}`
+  }
+  return `https://universaleverything.io/asset/${receiver.value}`
 })
 
 // NFT image for the liked asset (use images[] for artwork, icons[] as fallback)
