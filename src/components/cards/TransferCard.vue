@@ -492,7 +492,7 @@ const tokenAmount = computed(() => {
         // Object with numeric keys (e.g. {"0": 1, "1": 2, ...})
         const keys = Object.keys(rawValue).sort((a, b) => Number(a) - Number(b))
         if (keys.length > 0 && keys.every(k => !isNaN(Number(k)))) {
-          const hex = '0x' + keys.map(k => (rawValue as Record<string, number>)[k].toString(16).padStart(2, '0')).join('')
+          const hex = '0x' + keys.map(k => (rawValue as unknown as Record<string, number>)[k].toString(16).padStart(2, '0')).join('')
           rawValue = hex
         }
       }
