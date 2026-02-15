@@ -125,15 +125,16 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
-  // Detect mints from Transfer event log (from === zero address)
+  // Detect mints: by function name OR Transfer event from zero address
+  const isMintFn = fn === 'mint' || fn === 'mintbatch'
   const mintLog = tx.logs?.find((l: any) =>
     l.eventName === 'Transfer' &&
     l.args?.some((a: any) => a.name === 'from' && a.value === '0x0000000000000000000000000000000000000000')
   )
 
-  if (mintLog) {
-    // LSP8 Transfer has 'tokenId' arg; LSP7 has 'amount'
-    const hasTokenId = mintLog.args?.some((a: any) => a.name === 'tokenId')
+  if (isMintFn || mintLog) {
+    const hasTokenId = mintLog?.args?.some((a: any) => a.name === 'tokenId')
+      || tx.args?.some(a => a.name === 'tokenId')
     const isNft = hasTokenId || standard.includes('lsp8') || standard.includes('identifiabledigitalasset')
     return {
       type: isNft ? 'nft_mint' : 'token_mint',
