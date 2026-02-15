@@ -326,31 +326,42 @@ const isLikeAction = computed(() => {
   const isLikesToken = props.tx.to?.toLowerCase() === LIKES_TOKEN ||
     tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
   if (!isLikesToken) return false
-  // Receiver is an asset, OR receiver is unknown (not a profile with a name/images)
-  if (receiverIsAsset.value) return true
+  // Only show like card if receiver is a known asset (not a profile)
+  // If receiver resolves as a profile (has name or profileImages), it's a normal transfer
   const identity = toIdentity.value
-  if (!identity || (!identity.name && !identity.profileImages?.length)) return true
+  if (identity?.profileImages?.length || identity?.name) return false
+  // Receiver is a known asset
+  if (receiverIsAsset.value) return true
+  // Receiver has no identity — check Envio for asset/token data
+  if (envioMomentName.value || envioCollectionName.value) return true
   return false
 })
 
-// Fetch LIKES count and moment details when like action is detected
-let likesFetched = false
-watch(isLikeAction, (isLike) => {
-  if (isLike && !likesFetched) {
-    likesFetched = true
+// For LIKES transfers: always check if receiver is an asset via Envio
+// This runs before isLikeAction so we have data for the computed
+const isLikesTransfer = computed(() => {
+  if (transferType.value !== 'lsp7') return false
+  return props.tx.to?.toLowerCase() === LIKES_TOKEN ||
+    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
+})
+
+let envioFetched = false
+watch(isLikesTransfer, (isLikes) => {
+  if (isLikes && !envioFetched && receiver.value) {
+    envioFetched = true
     const addr = receiver.value
-    if (!addr) return
 
-    fetchLikesBalance(addr).then(count => {
-      if (count) receiverLikesCount.value = count
-    })
-
-    // If receiver has no identity data, fetch from Envio + resolve API
+    // Check Envio for asset/token data (determines if it's a like action)
     fetchTokenName(addr).then(meta => {
       if (meta) {
         if (meta.name) envioMomentName.value = meta.name
         if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
       }
+    })
+
+    // Fetch LIKES balance
+    fetchLikesBalance(addr).then(count => {
+      if (count) receiverLikesCount.value = count
     })
   }
 }, { immediate: true })
