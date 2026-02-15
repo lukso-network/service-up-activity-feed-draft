@@ -26,24 +26,29 @@
         Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }} LYX</span> to
       </template>
       <template v-else-if="transferType === 'lsp7'">
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ tokenAmount }}</span>
-        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
+        Sent
         <a
           :href="`https://universaleverything.io/asset/${tx.to}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >{{ tokenName }}</a> to
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <span>{{ tokenAmount }}</span>
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> to
       </template>
       <template v-else>
         Sent
-        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
         <a
           :href="`https://universaleverything.io/asset/${tx.to}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >{{ tokenName }} #{{ tokenId }}</a> to
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> to
       </template>
     </span>
 
@@ -221,6 +226,16 @@ const tokenName = computed(() => {
   const identity = tokenContractIdentity.value
   if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
   if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.name) return identity.name
+  if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
+  return transferType.value === 'lsp8' ? 'NFT' : 'Token'
+})
+
+// Display name: prefer full token name for readability, fall back to symbol
+const tokenDisplayName = computed(() => {
+  const identity = tokenContractIdentity.value
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
   if (identity?.name) return identity.name
   if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
   return transferType.value === 'lsp8' ? 'NFT' : 'Token'
