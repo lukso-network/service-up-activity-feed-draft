@@ -1,7 +1,19 @@
 <template>
   <CompactCard>
     <!-- Actor (sender) -->
+    <template v-if="senderIsAsset">
+      <a
+        :href="`https://universaleverything.io/asset/${tx.from}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
+      >
+        <img v-if="senderIconUrl" :src="senderIconUrl" class="w-6 h-6 rounded-full" :alt="senderAssetName" />
+        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ senderAssetName }}</span>
+      </a>
+    </template>
     <ProfileBadge
+      v-else
       :address="tx.from"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
@@ -36,7 +48,19 @@
     </span>
 
     <!-- Target (receiver) -->
+    <template v-if="receiverIsAsset">
+      <a
+        :href="`https://universaleverything.io/asset/${receiver}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
+      >
+        <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
+        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
+      </a>
+    </template>
     <ProfileBadge
+      v-else
       :address="receiver"
       :name="toIdentity?.name"
       :profile-url="toProfileUrl"
@@ -65,6 +89,35 @@ const props = defineProps<{
 const { getIdentity } = useAddressResolver()
 
 const fromIdentity = computed(() => getIdentity(props.tx.from))
+
+const senderIsAsset = computed(() => {
+  const identity = fromIdentity.value
+  if (!identity) return false
+  return identity.isLSP7 === true ||
+    identity.__gqltype === 'Asset' ||
+    identity.standard?.includes('LSP7') ||
+    identity.standard?.includes('LSP8') ||
+    !!identity.lsp4TokenName
+})
+
+const senderAssetName = computed(() => {
+  const identity = fromIdentity.value
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.name) return identity.name
+  return 'Token'
+})
+
+const senderIconUrl = computed(() => {
+  const identity = fromIdentity.value
+  const icons = identity?.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  }
+  return ''
+})
+
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -91,6 +144,36 @@ const receiver = computed(() => {
 })
 
 const toIdentity = computed(() => getIdentity(receiver.value))
+
+// Check if receiver is an asset (LSP7/LSP8) rather than a profile
+const receiverIsAsset = computed(() => {
+  const identity = toIdentity.value
+  if (!identity) return false
+  return identity.isLSP7 === true ||
+    identity.__gqltype === 'Asset' ||
+    identity.standard?.includes('LSP7') ||
+    identity.standard?.includes('LSP8') ||
+    !!identity.lsp4TokenName
+})
+
+const receiverAssetName = computed(() => {
+  const identity = toIdentity.value
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
+  if (identity?.name) return identity.name
+  return 'Token'
+})
+
+const receiverIconUrl = computed(() => {
+  const identity = toIdentity.value
+  const icons = identity?.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 32) || sorted[0]).src
+  }
+  return ''
+})
+
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''
