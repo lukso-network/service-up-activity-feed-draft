@@ -1,5 +1,56 @@
 <template>
-  <CompactCard>
+  <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
+  <ExtendedCard v-if="isLikeAction">
+    <template #header>
+      <div class="flex items-center gap-2">
+        <ProfileBadge
+          :address="senderAddress"
+          :name="fromIdentity?.name"
+          :profile-url="fromProfileUrl"
+          size="x-small"
+        />
+        <span class="text-sm text-neutral-500 dark:text-neutral-400">liked with</span>
+        <a
+          :href="`https://universaleverything.io/asset/${tx.to}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
+        </a>
+      </div>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </template>
+    <template #content>
+      <a
+        :href="`https://universaleverything.io/asset/${receiver}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-4 hover:opacity-90 transition-opacity no-underline"
+      >
+        <lukso-card
+          variant="basic"
+          :background-url="receiverNftImageUrl || ''"
+          width="120"
+          height="120"
+          border-radius="medium"
+          shadow="small"
+        ></lukso-card>
+        <div class="flex flex-col gap-1 min-w-0">
+          <span class="text-base font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+            {{ receiverAssetName || 'NFT' }}
+          </span>
+          <span v-if="receiverAssetDescription" class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2">
+            {{ receiverAssetDescription }}
+          </span>
+        </div>
+      </a>
+    </template>
+  </ExtendedCard>
+
+  <!-- Standard transfer card -->
+  <CompactCard v-else>
     <!-- Actor (sender) -->
     <template v-if="senderIsAsset">
       <a
@@ -14,7 +65,7 @@
     </template>
     <ProfileBadge
       v-else
-      :address="tx.from"
+      :address="senderAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
       size="x-small"
@@ -83,6 +134,7 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX } from '../../lib/formatters'
 import CompactCard from './CompactCard.vue'
+import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 
@@ -93,7 +145,17 @@ const props = defineProps<{
 
 const { getIdentity } = useAddressResolver()
 
-const fromIdentity = computed(() => getIdentity(props.tx.from))
+// The actual sender — for decoded txs, use args.from if available (the UP that initiated)
+const senderAddress = computed(() => {
+  const args = props.tx.args
+  if (args) {
+    const from = args.find(a => a.name === 'from')
+    if (from && typeof from.value === 'string') return from.value
+  }
+  return props.tx.from
+})
+
+const fromIdentity = computed(() => getIdentity(senderAddress.value))
 
 const senderIsAsset = computed(() => {
   const identity = fromIdentity.value
@@ -184,6 +246,37 @@ const toProfileUrl = computed(() => {
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   return (sorted.find(i => i.width >= 32) || sorted[0]).src
+})
+
+// Detect "like" action: LIKES token sent to an NFT/asset contract
+const isLikeAction = computed(() => {
+  if (transferType.value !== 'lsp7') return false
+  // Check if the token is LIKES (by symbol)
+  const tokenSymbol = tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase()
+  if (tokenSymbol !== 'LIKES') return false
+  // Receiver must be an asset, not a profile
+  return receiverIsAsset.value
+})
+
+// NFT image for the liked asset (use images[] for artwork, icons[] as fallback)
+const receiverNftImageUrl = computed(() => {
+  const identity = toIdentity.value
+  // Prefer images (artwork) over icons
+  const images = identity?.images
+  if (images?.length) {
+    const sorted = [...images].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+  }
+  const icons = identity?.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return (sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src
+  }
+  return ''
+})
+
+const receiverAssetDescription = computed(() => {
+  return toIdentity.value?.description || ''
 })
 
 // Format amounts
