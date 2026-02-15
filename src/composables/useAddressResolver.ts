@@ -47,6 +47,7 @@ export function useAddressResolver() {
           fetchTokenName(addr).then(meta => {
             if (meta) {
               const cached = cache[lower]
+              if (meta.name) cached.name = meta.name
               if (meta.lsp4TokenName) cached.lsp4TokenName = meta.lsp4TokenName
               if (meta.description) cached.description = meta.description
               if (meta.icons?.length && !cached.icons?.length) cached.icons = meta.icons

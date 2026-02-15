@@ -54,13 +54,13 @@
         </div>
         <!-- NFT details -->
         <div class="flex flex-col gap-1.5 min-w-0 py-1">
-          <span v-if="receiverAssetFullName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
-            {{ receiverAssetFullName }}
+          <span v-if="receiverCollectionName" class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
+            {{ receiverCollectionName }}
           </span>
           <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
-            {{ receiverAssetSymbol || receiverAssetName || 'NFT' }}
+            {{ receiverMomentName || receiverAssetSymbol || receiverAssetName || 'NFT' }}
           </span>
-          <span v-if="!receiverAssetSymbol && !receiverAssetName" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+          <span v-if="!receiverMomentName && !receiverAssetSymbol && !receiverAssetName" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
             {{ shortenAddress(receiver) }}
           </span>
           <!-- Creator info -->
@@ -335,9 +335,19 @@ const receiverNftImageUrl = computed(() => {
 })
 
 
-// Full token name vs symbol for the NFT card
-const receiverAssetFullName = computed(() => {
-  return toIdentity.value?.lsp4TokenName || ''
+// Individual moment/token name (from Envio 'name' field)
+const receiverMomentName = computed(() => {
+  return toIdentity.value?.name || ''
+})
+
+// Collection name (from Envio 'lsp4TokenName' — e.g. "Forever Moments")
+// Only show if different from the moment name
+const receiverCollectionName = computed(() => {
+  const collection = toIdentity.value?.lsp4TokenName || ''
+  const moment = receiverMomentName.value
+  // Don't show collection name if it's the same as the moment name
+  if (collection && moment && collection !== moment) return collection
+  return ''
 })
 
 const receiverAssetSymbol = computed(() => {

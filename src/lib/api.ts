@@ -89,15 +89,17 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
     if (!res.ok) return null
     const data = await res.json()
 
-    // Check Token table first (has individual moment names)
+    // Check Token table first (has individual moment/token names)
     const tokens = data.data?.Token
     if (tokens?.length) {
       const token = tokens[0]
-      const name = token.name || token.lsp4TokenName
-      if (name) {
+      if (token.name || token.lsp4TokenName) {
         return {
           address: lower,
-          lsp4TokenName: name,
+          // name = individual token name (e.g. "The Identity Layer")
+          // lsp4TokenName = collection name (e.g. "Forever Moments")
+          name: token.name || undefined,
+          lsp4TokenName: token.lsp4TokenName || undefined,
           description: token.description || undefined,
         }
       }
