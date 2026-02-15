@@ -10,30 +10,25 @@
       />
     </div>
 
-    <!-- Profile info -->
+    <!-- Profile info using web components -->
     <div class="px-4 pb-4">
       <div class="flex items-end gap-3 -mt-8">
-        <div class="w-16 h-16 rounded-full border-4 border-white dark:border-lukso-dark bg-gray-200 dark:bg-gray-700 overflow-hidden flex-shrink-0 shadow-lg">
-          <img
-            v-if="avatarSrc"
-            :src="avatarSrc"
-            :alt="profile.name || 'Profile'"
-            class="w-full h-full object-cover"
-          />
-          <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-xl font-bold">
-            {{ (profile.name || '?')[0]?.toUpperCase() }}
-          </div>
-        </div>
+        <lukso-profile
+          :profile-url="avatarSrc || ''"
+          :profile-address="address"
+          has-identicon
+          size="large"
+        ></lukso-profile>
         <div class="pb-1 min-w-0">
-          <h1 class="text-lg font-bold text-gray-900 dark:text-white truncate">
-            {{ profile.name || shortenAddress(address) }}
-          </h1>
-          <p v-if="profile.name" class="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
-            {{ shortenAddress(address) }}
-          </p>
+          <lukso-username
+            :name="profile.name || ''"
+            :address="address"
+            prefix="@"
+            size="medium"
+          ></lukso-username>
         </div>
       </div>
-      <p v-if="profile.description" class="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+      <p v-if="profile.description" class="mt-2 text-sm text-neutral-600 dark:text-neutral-300 line-clamp-2">
         {{ profile.description }}
       </p>
     </div>
@@ -57,7 +52,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { AddressIdentity } from '../lib/types'
-import { shortenAddress } from '../lib/formatters'
 
 const props = defineProps<{
   profile: AddressIdentity | undefined
@@ -67,8 +61,7 @@ const props = defineProps<{
 
 const avatarSrc = computed(() => {
   const images = props.profile?.profileImages
-  if (!images?.length) return null
-  // Pick smallest image >= 64px, or fallback to first
+  if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   return (sorted.find(i => i.width >= 64) || sorted[0]).src
 })

@@ -26,6 +26,21 @@ export function formatRelativeTime(timestamp: number): string {
   })
 }
 
+export function formatFullTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000)
+  const time = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  const day = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  })
+  return `${time} \u00B7 ${day}`
+}
+
 export function formatLYX(value: string): string {
   const num = BigInt(value)
   if (num === 0n) return ''
