@@ -9,7 +9,7 @@
           :profile-url="fromProfileUrl"
           size="x-small"
         />
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">liked with</span>
+        <span class="text-sm text-neutral-500 dark:text-neutral-400">{{ isLikesTransfer ? 'liked with' : 'sent' }}</span>
         <a
           :href="`https://universaleverything.io/asset/${tx.to}`"
           target="_blank"
@@ -317,41 +317,37 @@ const toProfileUrl = computed(() => {
   return optimizeImageUrl(src, 32)
 })
 
-// Detect "like" action: LIKES token sent to an NFT/asset contract
+// Show NFT preview card when receiver is an asset/NFT (not a profile)
+// Decision is based on the RECEIVER, not the token being sent
 const LIKES_TOKEN = '0x403bfd53617555295347e0f7725cfda480ab801e'
 
-const isLikeAction = computed(() => {
-  if (transferType.value !== 'lsp7') return false
-  // Check if token contract is LIKES (by address or symbol)
-  const isLikesToken = props.tx.to?.toLowerCase() === LIKES_TOKEN ||
-    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
-  if (!isLikesToken) return false
-  // Only show like card if receiver is a known asset (not a profile)
-  // If receiver resolves as a profile (has name or profileImages), it's a normal transfer
+const receiverIsProfile = computed(() => {
   const identity = toIdentity.value
-  if (identity?.profileImages?.length || identity?.name) return false
-  // Receiver is a known asset
+  if (!identity) return false
+  // Has profile images or __gqltype is Profile → it's a Universal Profile
+  if (identity.profileImages?.length) return true
+  if (identity.__gqltype === 'Profile') return true
+  return false
+})
+
+const isLikeAction = computed(() => {
+  if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
+  // If receiver is a profile → always normal transfer
+  if (receiverIsProfile.value) return false
+  // If receiver is a known asset via resolve API → NFT card
   if (receiverIsAsset.value) return true
-  // Receiver has no identity — check Envio for asset/token data
+  // If Envio found token/asset data for the receiver → NFT card
   if (envioMomentName.value || envioCollectionName.value) return true
   return false
 })
 
-// For LIKES transfers: always check if receiver is an asset via Envio
-// This runs before isLikeAction so we have data for the computed
-const isLikesTransfer = computed(() => {
-  if (transferType.value !== 'lsp7') return false
-  return props.tx.to?.toLowerCase() === LIKES_TOKEN ||
-    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
-})
-
+// For any token transfer: check receiver via Envio to determine if it's an asset
 let envioFetched = false
-watch(isLikesTransfer, (isLikes) => {
-  if (isLikes && !envioFetched && receiver.value) {
+watch(() => receiver.value, (addr) => {
+  if (addr && !envioFetched && (transferType.value === 'lsp7' || transferType.value === 'lyx')) {
     envioFetched = true
-    const addr = receiver.value
 
-    // Check Envio for asset/token data (determines if it's a like action)
+    // Check Envio for asset/token data on the receiver
     fetchTokenName(addr).then(meta => {
       if (meta) {
         if (meta.name) envioMomentName.value = meta.name
@@ -359,22 +355,25 @@ watch(isLikesTransfer, (isLikes) => {
       }
     })
 
-    // Fetch LIKES balance
+    // Fetch LIKES balance on the receiver
     fetchLikesBalance(addr).then(count => {
       if (count) receiverLikesCount.value = count
     })
   }
 }, { immediate: true })
 
-// Detect Forever Moments posts: ERC725Y contracts that aren't LSP7/LSP8 tokens
+const isLikesTransfer = computed(() => {
+  return props.tx.to?.toLowerCase() === LIKES_TOKEN ||
+    tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
+})
+
 const isForeverMoments = computed(() => {
+  if (envioCollectionName.value === 'Forever Moments') return true
   const identity = toIdentity.value
   if (!identity) return false
-  // Not a known token standard, but has data (resolved with owner/creator)
-  return !identity.isLSP7 &&
-    !identity.standard?.includes('LSP7') &&
-    !identity.standard?.includes('LSP8') &&
-    (identity.standard === 'UnknownContract' || identity.__gqltype === 'Asset' || !identity.standard)
+  return identity.lsp4TokenName === 'Forever Moments' ||
+    (identity.__gqltype === 'Asset' && !identity.isLSP7 &&
+     !identity.standard?.includes('LSP7') && !identity.standard?.includes('LSP8'))
 })
 
 const likedAssetUrl = computed(() => {
