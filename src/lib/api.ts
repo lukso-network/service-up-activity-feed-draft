@@ -56,75 +56,66 @@ export async function resolveAddresses(
   })
 }
 
-const RPC_URL = 'https://rpc.mainnet.lukso.network'
-const IPFS_GATEWAY = 'https://api.universalprofile.cloud/ipfs'
-const LSP4_METADATA_KEY = '9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e'
+const ENVIO_GRAPHQL = 'https://envio.lukso-mainnet.universal.tech/v1/graphql'
 
 /**
- * Fetch LSP4 name from on-chain metadata via RPC.
- * Uses getData(bytes32) to read LSP4Metadata, then fetches the IPFS JSON for the name.
+ * Fetch token name from the Envio indexer.
+ * Queries both the Asset table (direct) and Token table (LSP8 collection tokens).
  * Only returns the name — images come from the resolve API.
  */
-export async function fetchLSP4Name(address: string): Promise<Partial<AddressIdentity> | null> {
+export async function fetchTokenName(address: string): Promise<Partial<AddressIdentity> | null> {
   try {
-    // Call getData(LSP4Metadata) on the contract
-    const rpcRes = await fetch(RPC_URL, {
+    const lower = address.toLowerCase()
+    const padded = `0x${lower.replace('0x', '').padStart(64, '0')}`
+
+    // Query both Asset name and Token entries where this address is the tokenId
+    const query = `{
+      Asset_by_pk(id: "${lower}") {
+        name
+        description
+      }
+      Token(where: {asset_id: {_eq: "${lower}"}}, limit: 1) {
+        name
+        description
+        lsp4TokenName
+        lsp8ReferenceContract_id
+      }
+    }`
+
+    const res = await fetch(ENVIO_GRAPHQL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'eth_call',
-        params: [{ to: address, data: `0x54f6127f${LSP4_METADATA_KEY}` }, 'latest'],
-        id: 1,
-      }),
+      body: JSON.stringify({ query }),
     })
-    const rpcJson = await rpcRes.json()
-    const result = rpcJson.result as string
-    if (!result || result.length <= 66) return null
+    if (!res.ok) return null
+    const data = await res.json()
 
-    // Decode ABI bytes
-    const hex = result.slice(2)
-    const length = parseInt(hex.slice(64, 128), 16)
-    if (length === 0) return null
-    const payload = hex.slice(128, 128 + length * 2)
-
-    // Parse VerifiableURI: 00006f357c6a + 32-byte hash + UTF-8 URL
-    let ipfsUrl = ''
-    if (payload.startsWith('00006f357c6a')) {
-      // Skip: hashFunction(4 chars) + hash(64 chars) = 68 chars after prefix
-      const urlHex = payload.slice(4 + 4 + 64)
-      ipfsUrl = hexToUtf8(urlHex)
-    } else {
-      ipfsUrl = hexToUtf8(payload)
+    // Check Token table first (has individual moment names)
+    const tokens = data.data?.Token
+    if (tokens?.length) {
+      const token = tokens[0]
+      const name = token.name || token.lsp4TokenName
+      if (name) {
+        return {
+          address: lower,
+          lsp4TokenName: name,
+          description: token.description || undefined,
+        }
+      }
     }
-    if (!ipfsUrl) return null
 
-    // Resolve IPFS URL
-    const metaUrl = ipfsUrl.startsWith('ipfs://')
-      ? `${IPFS_GATEWAY}/${ipfsUrl.slice(7)}`
-      : ipfsUrl
-
-    // Fetch metadata JSON — only need the name
-    const metaRes = await fetch(metaUrl)
-    if (!metaRes.ok) return null
-    const meta = await metaRes.json()
-    const lsp4 = meta.LSP4Metadata || meta
-
-    if (!lsp4.name) return null
-    return {
-      address: address.toLowerCase(),
-      lsp4TokenName: lsp4.name,
-      description: lsp4.description || undefined,
+    // Fallback to Asset table
+    const asset = data.data?.Asset_by_pk
+    if (asset?.name) {
+      return {
+        address: lower,
+        lsp4TokenName: asset.name,
+        description: asset.description || undefined,
+      }
     }
+
+    return null
   } catch {
     return null
   }
-}
-
-function hexToUtf8(hex: string): string {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16)
-  }
-  return new TextDecoder().decode(bytes)
 }
