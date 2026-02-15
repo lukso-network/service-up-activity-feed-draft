@@ -2,9 +2,9 @@
   <CompactCard :tx="(tx as any)">
     <!-- Actor -->
     <ProfileBadge
-      :address="tx.from"
-      :name="fromIdentity?.name"
-      :profile-url="fromProfileUrl"
+      :address="tx.to"
+      :name="toIdentity?.name"
+      :profile-url="toProfileUrl"
       size="x-small"
     />
 
@@ -40,9 +40,9 @@ const props = defineProps<{
 
 const { getIdentity } = useAddressResolver()
 
-const fromIdentity = computed(() => getIdentity(props.tx.from))
-const fromProfileUrl = computed(() => {
-  const images = fromIdentity.value?.profileImages
+const toIdentity = computed(() => getIdentity(props.tx.to))
+const toProfileUrl = computed(() => {
+  const images = toIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   const src = (sorted.find(i => i.width >= 32) || sorted[0]).src
