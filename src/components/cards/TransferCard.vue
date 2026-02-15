@@ -189,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
@@ -333,35 +333,27 @@ const isLikeAction = computed(() => {
   return false
 })
 
-// Fetch LIKES count and moment details for the receiver asset when it's a like action
-watchEffect(() => {
-  if (isLikeAction.value && receiver.value) {
-    fetchLikesBalance(receiver.value).then(count => {
+// Fetch LIKES count and moment details when like action is detected
+let likesFetched = false
+watch(isLikeAction, (isLike) => {
+  if (isLike && !likesFetched) {
+    likesFetched = true
+    const addr = receiver.value
+    if (!addr) return
+
+    fetchLikesBalance(addr).then(count => {
       if (count) receiverLikesCount.value = count
     })
+
     // If receiver has no identity data, fetch from Envio + resolve API
-    const identity = toIdentity.value
-    if (!identity || (!identity.name && !identity.lsp4TokenName)) {
-      fetchTokenName(receiver.value).then(meta => {
-        if (meta) {
-          if (meta.name) envioMomentName.value = meta.name
-          if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
-        }
-      })
-      // Try resolve API for images
-      resolveAddresses(42, [receiver.value]).then(res => {
-        const id = res.addressIdentities[receiver.value.toLowerCase()]
-        if (id?.images?.length) {
-          const sorted = [...id.images].sort((a: any, b: any) => (a.width || 0) - (b.width || 0))
-          const src = (sorted.find((i: any) => (i.width || 0) >= 140) || sorted[0]).src
-          envioImageUrl.value = optimizeImageUrl(src, 140)
-        } else if (id?.icons?.length) {
-          envioImageUrl.value = optimizeImageUrl(id.icons[0].src, 140)
-        }
-      }).catch(() => {})
-    }
+    fetchTokenName(addr).then(meta => {
+      if (meta) {
+        if (meta.name) envioMomentName.value = meta.name
+        if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
+      }
+    })
   }
-})
+}, { immediate: true })
 
 // Detect Forever Moments posts: ERC725Y contracts that aren't LSP7/LSP8 tokens
 const isForeverMoments = computed(() => {
