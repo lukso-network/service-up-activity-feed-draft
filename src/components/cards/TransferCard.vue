@@ -577,7 +577,7 @@ const toProfileUrl = computed(() => {
 })
 
 // ─── Token contract: from Transfer event (emitted by the actual token contract) ───
-const LIKES_TOKEN = '0x403bfd53617555295347e0f7725cfda480ab801e'
+import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION } from '../../lib/events'
 
 const tokenContractAddress = computed(() => {
   const logs = props.tx.logs
@@ -616,7 +616,7 @@ const isNftToken = computed(() => {
 })
 
 // ─── NFT preview card: token is NFT type, or receiver is a Forever Moments NFT ───
-const FM_COLLECTION = '0xef54710b5a78b4926104a65594539521eb440d37'
+// FM_COLLECTION imported from events.ts
 
 const receiverIsForeverMoment = computed(() => {
   // Check via resolve API identity

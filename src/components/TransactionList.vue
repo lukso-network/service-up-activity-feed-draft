@@ -91,7 +91,7 @@ const { getIdentity } = useAddressResolver()
  * Detection: recipients resolve as __gqltype="Asset" (not "Profile").
  * This is reactive — re-evaluates when address identities resolve.
  */
-const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'
+import { LIKES_CONTRACT } from '../lib/events'
 
 const flattenedTransactions = computed(() => {
   const result: (Transaction & { _virtualKey?: string })[] = []

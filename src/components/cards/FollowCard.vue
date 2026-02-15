@@ -35,6 +35,10 @@ import { computed } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
+import {
+  FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
+  findLogByEvent, decodeAddressPairFromData
+} from '../../lib/events'
 import CompactCard from './CompactCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -51,42 +55,40 @@ const isUnfollow = computed(() => {
   return fn.includes('unfollow')
 })
 
-// Actor: derive from LSP26 Follow/Unfollow event, not tx.from (could be controller key)
-// LSP26 emits: Follow(address follower, address followed) / Unfollow(address unfollower, address unfollowed)
-// The API may not include these events (only UP-emitted events), so fall back to Executed event address
-const actorAddress = computed(() => {
+// Decode Follow/Unfollow event from raw logs by topic0 signature
+// LSP26 emits Follow(address follower, address followed) — both non-indexed, in data
+const followEventData = computed(() => {
   const logs = props.tx.logs
-  if (logs?.length) {
-    // 1. Best: Follow/Unfollow event from LSP26 — follower/unfollower arg IS the UP
-    const followEvent = logs.find((l: any) => l.eventName === 'Follow' || l.eventName === 'Unfollow')
-    if (followEvent?.args) {
-      const actor = followEvent.args.find((a: any) => a.name === 'follower' || a.name === 'unfollower')
-      if (actor?.value && typeof actor.value === 'string') return actor.value
+  // Look for Follow or Unfollow event by topic0
+  const followLog = findLogByEvent(logs, FOLLOW_EVENT) || findLogByEvent(logs, UNFOLLOW_EVENT)
+  if (followLog) {
+    // Decoded by API?
+    if (followLog.args) {
+      const actor = followLog.args.find((a: any) => a.name === 'follower' || a.name === 'unfollower')
+      const target = followLog.args.find((a: any) => a.name === 'followed' || a.name === 'unfollowed')
+      if (actor?.value && target?.value) {
+        return { actor: String(actor.value), target: String(target.value) }
+      }
     }
-    // 2. Fallback: Executed event emitted by the UP
-    const executed = logs.find((l: any) => l.eventName === 'Executed')
-    if (executed?.address) return executed.address
-  }
-  return props.tx.from
-})
-
-// Target: derive from LSP26 Follow/Unfollow event — followed/unfollowed arg
-const eventTargetAddress = computed(() => {
-  const logs = props.tx.logs
-  if (logs?.length) {
-    const followEvent = logs.find((l: any) => l.eventName === 'Follow' || l.eventName === 'Unfollow')
-    if (followEvent?.args) {
-      const target = followEvent.args.find((a: any) => a.name === 'followed' || a.name === 'unfollowed')
-      if (target?.value && typeof target.value === 'string') return target.value
-    }
+    // Raw undecoded: both addresses in data field
+    const pair = decodeAddressPairFromData(followLog.data)
+    if (pair) return { actor: pair[0], target: pair[1] }
   }
   return null
 })
 
+// Actor: from Follow/Unfollow event, then Executed event address, then tx.from
+const actorAddress = computed(() => {
+  if (followEventData.value) return followEventData.value.actor
+  // Fallback: Executed event emitted by the UP
+  const executed = findLogByEvent(props.tx.logs, EXECUTED_EVENT)
+  if (executed?.address) return executed.address
+  return props.tx.from
+})
+
+// Target: from Follow/Unfollow event, then function args, then tx.to
 const targetAddress = computed(() => {
-  // 1. Best: from Follow/Unfollow event
-  if (eventTargetAddress.value) return eventTargetAddress.value
-  // 2. From function args
+  if (followEventData.value) return followEventData.value.target
   const args = props.tx.args
   if (args) {
     const addr = args.find(a => a.name === 'addr')
