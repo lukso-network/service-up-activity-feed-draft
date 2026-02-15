@@ -120,7 +120,8 @@ async function startPolling() {
 onMounted(async () => {
   await Promise.all([load(), loadProfile()])
   lastVisibleCount.value = transactions.value.length
-  startPolling()
+  // Polling disabled for now
+  // startPolling()
 })
 
 onUnmounted(() => {
