@@ -11,7 +11,7 @@
         />
         <div class="basis-full h-0 sm:hidden"></div>
         <span class="text-sm text-neutral-500 dark:text-neutral-400">
-          {{ isTokenIdUpdate ? 'updated NFT metadata' : 'updated collection metadata' }}
+          {{ actionText }}
         </span>
         <TimeStamp :timestamp="tx.blockTimestamp" />
       </div>
@@ -121,6 +121,17 @@ const actorAddress = computed(() => {
 })
 
 const tokenAddress = computed(() => props.tx.to)
+
+// Action text based on lsp4TokenType:
+// setDataForTokenId → always "updated NFT metadata" (per-item)
+// setData: type 2 (Collection) → "updated collection metadata"
+// setData: type 0 (token/currency) or type 1 (NFT) → "updated token metadata"
+const actionText = computed(() => {
+  if (isTokenIdUpdate.value) return 'updated NFT metadata'
+  const tokenType = collectionIdentity.value?.lsp4TokenType
+  if (tokenType === 2) return 'updated collection metadata'
+  return 'updated token metadata'
+})
 
 // ─── Token ID decoding ───
 const rawTokenId = computed(() => {
