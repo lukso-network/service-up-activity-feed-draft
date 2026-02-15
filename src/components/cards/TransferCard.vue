@@ -69,9 +69,8 @@
   </ExtendedCard>
 
   <!-- Standard transfer card -->
-  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4 flex flex-col gap-2">
-    <!-- Line 1: Sender + Action -->
-    <div class="flex items-center gap-2 min-w-0">
+  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+    <div class="flex items-center gap-2 min-w-0 flex-wrap">
       <!-- Actor (sender) -->
       <template v-if="senderIsAsset">
         <a
@@ -95,7 +94,7 @@
       <!-- Action text -->
       <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap flex items-center gap-1">
         <template v-if="transferType === 'lyx'">
-          Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span>
+          Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
         </template>
         <template v-else-if="transferType === 'lsp7'">
           Sent
@@ -108,7 +107,7 @@
             <span>{{ tokenAmount }}</span>
             <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
             <span>{{ tokenDisplayName }}</span>
-          </a>
+          </a> to
         </template>
         <template v-else>
           Sent
@@ -120,14 +119,9 @@
           >
             <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
             <span>{{ tokenDisplayName }}</span>
-          </a>
+          </a> to
         </template>
       </span>
-    </div>
-
-    <!-- Line 2: "to" + Receiver + Timestamp -->
-    <div class="flex items-center gap-2 min-w-0 pl-8">
-      <span class="text-sm text-neutral-500 dark:text-neutral-400">to</span>
 
       <!-- Target (receiver) -->
       <template v-if="receiverIsAsset">
