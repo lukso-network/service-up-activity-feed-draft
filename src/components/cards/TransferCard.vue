@@ -193,7 +193,7 @@ import { computed, ref, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { fetchLikesBalance } from '../../lib/api'
+import { fetchLikesBalance, fetchTokenName, resolveAddresses } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -207,6 +207,9 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 const detailsExpanded = ref(false)
 const receiverLikesCount = ref<string | null>(null)
+const envioMomentName = ref<string | null>(null)
+const envioCollectionName = ref<string | null>(null)
+const envioImageUrl = ref<string | null>(null)
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
@@ -321,16 +324,42 @@ const isLikeAction = computed(() => {
   // Check if the token is LIKES (by symbol)
   const tokenSymbol = tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase()
   if (tokenSymbol !== 'LIKES') return false
-  // Receiver must be an asset, not a profile
-  return receiverIsAsset.value
+  // Receiver is an asset, OR receiver is unknown (not a profile with a name)
+  // FM moment contracts often don't resolve in the API
+  const identity = toIdentity.value
+  if (receiverIsAsset.value) return true
+  // If receiver has no identity or no profile name/images, it's likely an asset
+  if (!identity || (!identity.name && !identity.profileImages?.length)) return true
+  return false
 })
 
-// Fetch LIKES count for the receiver asset when it's a like action
+// Fetch LIKES count and moment details for the receiver asset when it's a like action
 watchEffect(() => {
   if (isLikeAction.value && receiver.value) {
     fetchLikesBalance(receiver.value).then(count => {
       if (count) receiverLikesCount.value = count
     })
+    // If receiver has no identity data, fetch from Envio + resolve API
+    const identity = toIdentity.value
+    if (!identity || (!identity.name && !identity.lsp4TokenName)) {
+      fetchTokenName(receiver.value).then(meta => {
+        if (meta) {
+          if (meta.name) envioMomentName.value = meta.name
+          if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
+        }
+      })
+      // Try resolve API for images
+      resolveAddresses(42, [receiver.value]).then(res => {
+        const id = res.addressIdentities[receiver.value.toLowerCase()]
+        if (id?.images?.length) {
+          const sorted = [...id.images].sort((a: any, b: any) => (a.width || 0) - (b.width || 0))
+          const src = (sorted.find((i: any) => (i.width || 0) >= 140) || sorted[0]).src
+          envioImageUrl.value = optimizeImageUrl(src, 140)
+        } else if (id?.icons?.length) {
+          envioImageUrl.value = optimizeImageUrl(id.icons[0].src, 140)
+        }
+      }).catch(() => {})
+    }
   }
 })
 
@@ -354,6 +383,8 @@ const likedAssetUrl = computed(() => {
 
 // NFT image for the liked asset (use images[] for artwork, icons[] as fallback)
 const receiverNftImageUrl = computed(() => {
+  // Try Envio fallback first (for unresolved moment addresses)
+  if (envioImageUrl.value) return envioImageUrl.value
   const identity = toIdentity.value
   // Prefer images (artwork) over icons
   const images = identity?.images
@@ -374,13 +405,13 @@ const receiverNftImageUrl = computed(() => {
 
 // Individual moment/token name (from Envio 'name' field)
 const receiverMomentName = computed(() => {
-  return toIdentity.value?.name || ''
+  return toIdentity.value?.name || envioMomentName.value || ''
 })
 
 // Collection name (from Envio 'lsp4TokenName' — e.g. "Forever Moments")
 // Only show if different from the moment name
 const receiverCollectionName = computed(() => {
-  const collection = toIdentity.value?.lsp4TokenName || ''
+  const collection = toIdentity.value?.lsp4TokenName || envioCollectionName.value || ''
   const moment = receiverMomentName.value
   // Don't show collection name if it's the same as the moment name
   if (collection && moment && collection !== moment) return collection
