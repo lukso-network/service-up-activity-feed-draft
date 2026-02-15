@@ -143,6 +143,17 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
+  // setDataForTokenId — always a token metadata update (per-token data on NFT contracts)
+  // Must be checked before LSP7/LSP8 standard checks since those match by standard field
+  if (fn.includes('setdatafortokenid')) {
+    return {
+      type: 'token_metadata_update',
+      label: 'Token Metadata Update',
+      icon: '🪙',
+      color: 'text-amber-500',
+    }
+  }
+
   // LSP7 Token transfers
   if (standard.includes('lsp7') || (standard.includes('digitalasset') && !standard.includes('identifiable'))) {
     return {
@@ -160,16 +171,6 @@ export function classifyTransaction(tx: Transaction): {
       label: 'NFT Transfer',
       icon: '🖼️',
       color: 'text-purple-500',
-    }
-  }
-
-  // setDataForTokenId — always a token metadata update (per-token data on NFT contracts)
-  if (fn.includes('setdatafortokenid')) {
-    return {
-      type: 'token_metadata_update',
-      label: 'Token Metadata Update',
-      icon: '🪙',
-      color: 'text-amber-500',
     }
   }
 
