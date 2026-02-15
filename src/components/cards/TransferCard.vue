@@ -80,7 +80,7 @@
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
         sent
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -92,8 +92,26 @@
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
           <span>{{ tokenDisplayName }}</span>
         </a>
-        to {{ batchCount }} profiles
+        to
       </span>
+      <!-- Recipient profile icons (up to 5) -->
+      <div class="flex items-center -space-x-1">
+        <a
+          v-for="r in batchPreviewRecipients"
+          :key="r.address"
+          :href="`https://universaleverything.io/${r.address}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block"
+        >
+          <lukso-profile
+            :profile-address="r.address"
+            has-identicon
+            size="x-small"
+          ></lukso-profile>
+        </a>
+        <span v-if="batchHasMore" class="text-xs text-neutral-400 dark:text-neutral-500 ml-1.5">+{{ batchCount - 5 }}</span>
+      </div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
     <button
@@ -109,7 +127,28 @@
       </svg>
     </button>
     </div>
-    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
+    <!-- Expanded: individual recipients + amounts -->
+    <div v-if="detailsExpanded" class="mt-3 space-y-2">
+      <div
+        v-for="r in batchRecipients"
+        :key="r.address"
+        class="flex items-center gap-2 text-sm"
+      >
+        <span class="text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
+          {{ r.amount }}
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-3.5 h-3.5 rounded-full inline-block mx-0.5 align-text-bottom" :alt="tokenDisplayName" />
+          {{ tokenDisplayName }} →
+        </span>
+        <ProfileBadge
+          :address="r.address"
+          :name="getIdentity(r.address)?.name"
+          size="x-small"
+        />
+      </div>
+      <div class="border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-2">
+        <TxDetails :tx="(tx as any)" />
+      </div>
+    </div>
   </div>
 
   <!-- NFT card: token is NFT type (lsp4TokenType 1/2), or token sent to an NFT/asset -->
@@ -464,6 +503,40 @@ const batchTotalAmount = computed(() => {
     return `${whole.toLocaleString('en-US')}.${fracStr}`
   } catch { return '' }
 })
+
+// Batch: individual recipients with addresses and formatted amounts
+const batchRecipients = computed(() => {
+  if (!isBatchTransfer.value) return []
+  const toArr = getArg('to')
+  const amountArr = getArg('amount')
+  if (!Array.isArray(toArr) || !Array.isArray(amountArr)) return []
+  const dec = BigInt(tokenDecimals.value)
+  return toArr.map((addr: unknown, i: number) => {
+    const raw = amountArr[i]
+    let formatted = ''
+    try {
+      const val = BigInt(String(raw))
+      if (dec === 0n) {
+        formatted = Number(val).toLocaleString('en-US')
+      } else {
+        const divisor = 10n ** dec
+        const whole = val / divisor
+        const frac = val % divisor
+        if (frac === 0n) formatted = whole.toLocaleString('en-US')
+        else {
+          const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+          formatted = `${whole.toLocaleString('en-US')}.${fracStr}`
+        }
+      }
+    } catch { formatted = String(raw) }
+    return { address: String(addr), amount: formatted }
+  })
+})
+
+// First 5 recipients for preview icons
+const batchPreviewRecipients = computed(() => batchRecipients.value.slice(0, 5))
+const batchHasMore = computed(() => batchRecipients.value.length > 5)
+
 const toIdentity = computed(() => getIdentity(receiver.value))
 
 const receiverIsAsset = computed(() => {
