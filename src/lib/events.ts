@@ -34,6 +34,10 @@ export const DATA_CHANGED_EVENT = '0xece574603820d07bc9b91f2a932baadf4628aabcb8a
 // UniversalReceiver(address from, uint256 value, bytes32 typeId, bytes receivedData, bytes returnedValue)
 export const UNIVERSAL_RECEIVER_EVENT = '0x9c3ba68eb5742b8e3961aea0afc7371a71bf433c8a67a831803b64c064a178c2'
 
+// ─── LSP26 UniversalReceiver typeIds ───
+// Sent to the followed profile's UP when someone follows them
+export const LSP26_FOLLOW_TYPEID = '0x71e02f9f05bcd5816ec4f3134aa2e5a916669537ec6c77fe66ea595fabc2d51a'
+
 // ─── Contract addresses ───
 export const LSP26_ADDRESS = '0xf01103E5a9909Fc0DBe8166dA7085e0285daDDcA'
 export const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'

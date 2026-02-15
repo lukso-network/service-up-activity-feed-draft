@@ -36,8 +36,9 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
 import {
-  FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
-  findLogByEvent, decodeAddressPairFromData
+  FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT, UNIVERSAL_RECEIVER_EVENT,
+  LSP26_FOLLOW_TYPEID, LSP26_ADDRESS,
+  findLogByEvent, findAllLogsByEvent, decodeAddressPairFromData
 } from '../../lib/events'
 import CompactCard from './CompactCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -77,12 +78,35 @@ const followEventData = computed(() => {
   return null
 })
 
-// Actor: from Follow/Unfollow event, then Executed event address, then tx.from
+// Actor: from Follow/Unfollow event → Executed event → UniversalReceiver receivedData → tx.from
 const actorAddress = computed(() => {
+  // 1. Best: Follow/Unfollow event from LSP26
   if (followEventData.value) return followEventData.value.actor
-  // Fallback: Executed event emitted by the UP
+  // 2. Executed event emitted by the UP
   const executed = findLogByEvent(props.tx.logs, EXECUTED_EVENT)
   if (executed?.address) return executed.address
+  // 3. UniversalReceiver with LSP26 follow typeId — receivedData contains the follower UP address
+  const urLogs = findAllLogsByEvent(props.tx.logs, UNIVERSAL_RECEIVER_EVENT)
+  for (const ur of urLogs) {
+    const typeIdArg = ur.args?.find((a: any) => a.name === 'typeId')
+    if (typeIdArg?.value === LSP26_FOLLOW_TYPEID) {
+      const receivedData = ur.args?.find((a: any) => a.name === 'receivedData')
+      if (receivedData?.value && typeof receivedData.value === 'string') {
+        // receivedData is the raw UP address (20 bytes)
+        const addr = receivedData.value.toLowerCase()
+        if (addr.length === 42) return addr // already 0x-prefixed address
+      }
+    }
+    // Also check: from === LSP26 means this is a follow notification
+    const fromArg = ur.args?.find((a: any) => a.name === 'from')
+    if (fromArg?.value?.toLowerCase() === LSP26_ADDRESS.toLowerCase()) {
+      const receivedData = ur.args?.find((a: any) => a.name === 'receivedData')
+      if (receivedData?.value && typeof receivedData.value === 'string') {
+        const addr = receivedData.value.toLowerCase()
+        if (addr.length === 42) return addr
+      }
+    }
+  }
   return props.tx.from
 })
 
