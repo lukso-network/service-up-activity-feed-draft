@@ -66,7 +66,6 @@ const ENVIO_GRAPHQL = 'https://envio.lukso-mainnet.universal.tech/v1/graphql'
 export async function fetchTokenName(address: string): Promise<Partial<AddressIdentity> | null> {
   try {
     const lower = address.toLowerCase()
-    const padded = `0x${lower.replace('0x', '').padStart(64, '0')}`
 
     // Query both Asset name and Token entries where this address is the tokenId
     const query = `{
