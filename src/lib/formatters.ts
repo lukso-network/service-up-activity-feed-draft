@@ -130,7 +130,7 @@ export function classifyTransaction(tx: Transaction): {
   // LSP8 Transfer(operator, from, to, tokenId, force, data) — from is 2nd param
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
   const LSP7_TRANSFER_SIG = '0x3997e418d2cef0b3b0e907b1e39605c3f7d32dbd061e82ea5b4a770d46a160a6'
-  const LSP8_TRANSFER_SIG = '0xb333c813a7426a7a11e2b190cad52c44119421594b47f6f32ace6d8c7571593'
+  const LSP8_TRANSFER_SIG = '0xb333c813a7426a7a11e2b190cad52c44119421594b47f6f32ace6d8c7207b2bf'
   const isMintFn = fn === 'mint' || fn === 'mintbatch'
 
   // Check decoded Transfer events

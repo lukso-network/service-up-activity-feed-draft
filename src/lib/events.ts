@@ -23,7 +23,7 @@ export const LSP7_TRANSFER_EVENT = '0x3997e418d2cef0b3b0e907b1e39605c3f7d32dbd06
 
 // ─── LSP8 Identifiable Digital Asset ───
 // Transfer(address operator, address from, address to, bytes32 tokenId, bool force, bytes data)
-export const LSP8_TRANSFER_EVENT = '0xb333c813a7426a7a11e2b190cad52c44119421594b47f6f32ace6d8c7571593'
+export const LSP8_TRANSFER_EVENT = '0xb333c813a7426a7a11e2b190cad52c44119421594b47f6f32ace6d8c7207b2bf'
 
 // ─── Universal Profile (LSP0/ERC725X) ───
 // Executed(uint256 operationType, address target, uint256 value, bytes4 selector)
