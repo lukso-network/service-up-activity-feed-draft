@@ -17,13 +17,14 @@
           class="inline-flex items-center gap-1 text-sm font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
         >
           <img v-if="mintTokenIconUrl" :src="mintTokenIconUrl" class="w-4 h-4 rounded-full" :alt="mintTokenName" />
-          <span>{{ mintAmount }} {{ mintTokenName }}</span>
+          <span>{{ mintTokenName }}</span>
         </a>
+        <span v-if="mintTokenId" class="text-sm text-neutral-400 dark:text-neutral-500">{{ mintTokenId }}</span>
       </div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <NftPreview :address="mintTokenContract" :chain-id="chainId" />
+      <NftPreview :address="mintTokenContract" :chain-id="chainId" :token-id-label="mintTokenId" />
     </template>
   </ExtendedCard>
 
@@ -334,6 +335,7 @@ import TimeStamp from '../shared/TimeStamp.vue'
 import NftPreview from '../shared/NftPreview.vue'
 import FmMomentPreview from '../shared/FmMomentPreview.vue'
 import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION } from '../../lib/events'
+import { autoDecodeTokenId } from '../../lib/tokenId'
 
 const props = defineProps<{
   tx: Transaction
@@ -398,6 +400,17 @@ const minterProfileUrl = computed(() => {
 
 // Mint token contract = Transfer event emitter OR tx.to (the contract being minted on)
 const mintTokenContract = computed(() => mintTransferLog.value?.address || props.tx.to || '')
+
+// Mint tokenId (for NFT mints)
+const mintTokenId = computed(() => {
+  // From Transfer event args
+  const logTokenId = mintTransferLog.value?.args?.find((a: any) => a.name === 'tokenId')
+  if (logTokenId?.value) return autoDecodeTokenId(String(logTokenId.value)).display
+  // From function args
+  const argTokenId = props.tx.args?.find(a => a.name === 'tokenId')
+  if (argTokenId?.value) return autoDecodeTokenId(String(argTokenId.value)).display
+  return ''
+})
 
 const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
 

@@ -24,7 +24,7 @@
         </div>
       </div>
       <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-        <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(address) }}</span>
+        <span class="text-xs text-neutral-500 font-mono">{{ tokenIdLabel || shortenAddress(address) }}</span>
       </div>
     </div>
     <!-- NFT details -->
@@ -60,6 +60,7 @@ import ProfileBadge from './ProfileBadge.vue'
 const props = defineProps<{
   address: string
   chainId: number
+  tokenIdLabel?: string
 }>()
 
 const { getIdentity, queueResolve } = useAddressResolver()
