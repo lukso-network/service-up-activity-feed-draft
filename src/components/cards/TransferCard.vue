@@ -218,11 +218,8 @@ const senderIsAsset = computed(() => {
 
 const senderAssetName = computed(() => {
   const identity = fromIdentity.value
-  const symbol = identity?.lsp4TokenSymbol
-  const name = identity?.lsp4TokenName
-  if (symbol && isNaN(Number(symbol))) return symbol
-  if (name) return name
-  if (symbol) return symbol
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
   if (identity?.name) return identity.name
   return 'Token'
 })
@@ -457,14 +454,11 @@ const tokenDecimals = computed(() => {
 })
 
 
-// Display name: use symbol for compact display, but fall back to name if symbol looks like a number
+// Display name: use symbol for compact display
 const tokenDisplayName = computed(() => {
   const identity = tokenContractIdentity.value
-  const symbol = identity?.lsp4TokenSymbol
-  const name = identity?.lsp4TokenName
-  if (symbol && isNaN(Number(symbol))) return symbol
-  if (name) return name
-  if (symbol) return symbol
+  if (identity?.lsp4TokenSymbol) return identity.lsp4TokenSymbol
+  if (identity?.lsp4TokenName) return identity.lsp4TokenName
   if (identity?.name) return identity.name
   if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
   return transferType.value === 'lsp8' ? 'NFT' : 'Token'
