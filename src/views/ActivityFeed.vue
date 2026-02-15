@@ -56,7 +56,12 @@ const newTxCount = ref(0)
 const lastVisibleCount = ref(0)
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
-const visibleTransactions = computed(() => transactions.value)
+const devMode = computed(() => route.query.devmode !== undefined)
+
+const visibleTransactions = computed(() => {
+  if (devMode.value) return transactions.value
+  return transactions.value.filter(tx => tx.status !== 0)
+})
 
 function showNewTransactions() {
   newTxCount.value = 0
