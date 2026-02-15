@@ -160,18 +160,22 @@
 
       <!-- Timestamp (right side) -->
       <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
+      <JsonExpandButton @toggle="jsonExpanded = !jsonExpanded" />
     </div>
-    <JsonExpander :data="(tx as any)" />
+    <pre
+      v-if="jsonExpanded"
+      class="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed"
+    >{{ JSON.stringify(tx, null, 2) }}</pre>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import ExtendedCard from './ExtendedCard.vue'
-import JsonExpander from '../shared/JsonExpander.vue'
+import JsonExpandButton from '../shared/JsonExpandButton.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 
@@ -181,6 +185,7 @@ const props = defineProps<{
 }>()
 
 const { getIdentity, queueResolve } = useAddressResolver()
+const jsonExpanded = ref(false)
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
