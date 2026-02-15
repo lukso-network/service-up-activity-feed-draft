@@ -11,13 +11,27 @@
     <!-- Action text -->
     <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap flex items-center gap-1">
       <template v-if="transferType === 'lyx'">
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
+        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }} LYX</span> to
       </template>
       <template v-else-if="transferType === 'lsp7'">
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ tokenAmount }} {{ tokenName }}</span> to
+        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ tokenAmount }}</span>
+        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
+        <a
+          :href="`https://universaleverything.io/${tx.to}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >{{ tokenName }}</a> to
       </template>
       <template v-else>
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ tokenName }} #{{ tokenId }}</span> to
+        Sent
+        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full inline-block" :alt="tokenName" />
+        <a
+          :href="`https://universaleverything.io/${tx.to}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >{{ tokenName }} #{{ tokenId }}</a> to
       </template>
     </span>
 
@@ -107,10 +121,25 @@ const tokenAmount = computed(() => {
   return ''
 })
 
+// Token contract identity (tx.to is the token contract for LSP7/LSP8)
+const tokenContractIdentity = computed(() => {
+  if (transferType.value === 'lyx') return undefined
+  return getIdentity(props.tx.to)
+})
+
 const tokenName = computed(() => {
-  // Use toName from enhanced decoding if available
+  // Resolved token contract name is the best source
+  if (tokenContractIdentity.value?.name) return tokenContractIdentity.value.name
+  // Fallback to enhanced decoding field
   if (props.tx.toName && transferType.value !== 'lyx') return props.tx.toName
   return transferType.value === 'lsp8' ? 'NFT' : 'Token'
+})
+
+const tokenIconUrl = computed(() => {
+  const images = tokenContractIdentity.value?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return (sorted.find(i => i.width >= 32) || sorted[0]).src
 })
 
 const tokenId = computed(() => {
