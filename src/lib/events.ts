@@ -32,6 +32,8 @@ export const EXECUTED_EVENT = '0x4810874456b8e6487bd861375cf6abd8e1c8bb5858c8ce3
 export const PERMISSIONS_VERIFIED_EVENT = '0xc0a62328f6bf5e3172bb1fcb2019f54b2c523b6a48e3513a2298fbf0150b781e'
 // DataChanged(bytes32 dataKey, bytes dataValue)
 export const DATA_CHANGED_EVENT = '0xece574603820d07bc9b91f2a932baadf4628aabcb8afba49776529c14a6104b2'
+// TokenIdDataChanged(bytes32 tokenId, bytes32 dataKey, bytes dataValue) — per-token metadata
+export const TOKEN_ID_DATA_CHANGED_EVENT = '0xa6e4251f855f750545fe414f120db91c76b88def14d120969e5bb2d3f05debbb'
 // UniversalReceiver(address from, uint256 value, bytes32 typeId, bytes receivedData, bytes returnedValue)
 export const UNIVERSAL_RECEIVER_EVENT = '0x9c3ba68eb5742b8e3961aea0afc7371a71bf433c8a67a831803b64c064a178c2'
 
