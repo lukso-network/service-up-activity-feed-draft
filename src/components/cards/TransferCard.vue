@@ -63,82 +63,90 @@
   </ExtendedCard>
 
   <!-- Standard transfer card -->
-  <CompactCard v-else>
-    <!-- Actor (sender) -->
-    <template v-if="senderIsAsset">
-      <a
-        :href="`https://universaleverything.io/asset/${tx.from}`"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
-      >
-        <img v-if="senderIconUrl" :src="senderIconUrl" class="w-6 h-6 rounded-full" :alt="senderAssetName" />
-        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ senderAssetName }}</span>
-      </a>
-    </template>
-    <ProfileBadge
-      v-else
-      :address="senderAddress"
-      :name="fromIdentity?.name"
-      :profile-url="fromProfileUrl"
-      size="x-small"
-    />
-
-    <!-- Action text -->
-    <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap flex items-center gap-1">
-      <template v-if="transferType === 'lyx'">
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }} LYX</span> to
-      </template>
-      <template v-else-if="transferType === 'lsp7'">
-        Sent
+  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4 flex flex-col gap-2">
+    <!-- Line 1: Sender + Action -->
+    <div class="flex items-center gap-2 min-w-0">
+      <!-- Actor (sender) -->
+      <template v-if="senderIsAsset">
         <a
-          :href="`https://universaleverything.io/asset/${tx.to}`"
+          :href="`https://universaleverything.io/asset/${tx.from}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+          class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
         >
-          <span>{{ tokenAmount }}</span>
-          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-          <span>{{ tokenDisplayName }}</span>
-        </a> to
+          <img v-if="senderIconUrl" :src="senderIconUrl" class="w-6 h-6 rounded-full" :alt="senderAssetName" />
+          <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ senderAssetName }}</span>
+        </a>
       </template>
-      <template v-else>
-        Sent
+      <ProfileBadge
+        v-else
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+
+      <!-- Action text -->
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap flex items-center gap-1">
+        <template v-if="transferType === 'lyx'">
+          Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span>
+        </template>
+        <template v-else-if="transferType === 'lsp7'">
+          Sent
+          <a
+            :href="`https://universaleverything.io/asset/${tx.to}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+          >
+            <span>{{ tokenAmount }}</span>
+            <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+            <span>{{ tokenDisplayName }}</span>
+          </a>
+        </template>
+        <template v-else>
+          Sent
+          <a
+            :href="`https://universaleverything.io/asset/${tx.to}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+          >
+            <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+            <span>{{ tokenDisplayName }}</span>
+          </a>
+        </template>
+      </span>
+    </div>
+
+    <!-- Line 2: "to" + Receiver + Timestamp -->
+    <div class="flex items-center gap-2 min-w-0 pl-8">
+      <span class="text-sm text-neutral-500 dark:text-neutral-400">to</span>
+
+      <!-- Target (receiver) -->
+      <template v-if="receiverIsAsset">
         <a
-          :href="`https://universaleverything.io/asset/${tx.to}`"
+          :href="`https://universaleverything.io/asset/${receiver}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+          class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
         >
-          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-          <span>{{ tokenDisplayName }}</span>
-        </a> to
+          <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
+          <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
+        </a>
       </template>
-    </span>
+      <ProfileBadge
+        v-else
+        :address="receiver"
+        :name="toIdentity?.name"
+        :profile-url="toProfileUrl"
+        size="x-small"
+      />
 
-    <!-- Target (receiver) -->
-    <template v-if="receiverIsAsset">
-      <a
-        :href="`https://universaleverything.io/asset/${receiver}`"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
-      >
-        <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
-        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
-      </a>
-    </template>
-    <ProfileBadge
-      v-else
-      :address="receiver"
-      :name="toIdentity?.name"
-      :profile-url="toProfileUrl"
-      size="x-small"
-    />
-
-    <!-- Timestamp (right side) -->
-    <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
-  </CompactCard>
+      <!-- Timestamp (right side) -->
+      <TimeStamp class="ml-auto" :timestamp="tx.blockTimestamp" />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
