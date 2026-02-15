@@ -338,7 +338,7 @@ const minterIdentity = computed(() => minterAddress.value ? getIdentity(minterAd
 const minterProfileUrl = computed(() => {
   const images = minterIdentity.value?.profileImages
   if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
+  const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
@@ -378,7 +378,7 @@ const mintTokenName = computed(() =>
 const mintTokenIconUrl = computed(() => {
   const icons = mintTokenIdentity.value?.icons
   if (!icons?.length) return ''
-  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
 })
 
@@ -421,14 +421,14 @@ const senderAssetName = computed(() => {
 const senderIconUrl = computed(() => {
   const icons = fromIdentity.value?.icons
   if (!icons?.length) return ''
-  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
 
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
+  const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
@@ -482,14 +482,14 @@ const receiverAssetName = computed(() => {
 const receiverIconUrl = computed(() => {
   const icons = toIdentity.value?.icons
   if (!icons?.length) return ''
-  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
 
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
+  const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 32)
 })
 
@@ -610,12 +610,12 @@ const tokenIconUrl = computed(() => {
   const identity = tokenContractIdentity.value
   const icons = identity?.icons
   if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
     return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
   }
   const images = identity?.profileImages
   if (images?.length) {
-    const sorted = [...images].sort((a, b) => a.width - b.width)
+    const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
     return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
   }
   return ''

@@ -75,12 +75,12 @@ const displayName = computed(() =>
 const imageUrl = computed(() => {
   const images = identity.value?.images
   if (images?.length) {
-    const sorted = [...images].sort((a, b) => a.width - b.width)
+    const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
     return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
   }
   const icons = identity.value?.icons
   if (icons?.length) {
-    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
     return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
   }
   return ''
@@ -104,7 +104,7 @@ const creatorIdentity = computed(() => {
 const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => a.width - b.width)
+  const sorted = [...(images || [])].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
 </script>
