@@ -10,7 +10,7 @@
 
     <!-- Action text -->
     <span class="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
-      {{ isUnfollow ? 'unfollowed' : 'follows' }}
+      {{ isUnfollow ? 'unfollowed' : 'followed' }}
     </span>
 
     <!-- Target -->
