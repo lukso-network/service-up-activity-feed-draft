@@ -536,12 +536,6 @@ const receiverIsAsset = computed(() => {
     !!identity.lsp4TokenName
 })
 
-const receiverIsProfile = computed(() => {
-  const identity = toIdentity.value
-  if (!identity) return false
-  return !!(identity.profileImages?.length) || identity.__gqltype === 'Profile'
-})
-
 const receiverAssetName = computed(() => {
   const identity = toIdentity.value
   return identity?.lsp4TokenName || identity?.lsp4TokenSymbol || identity?.name || ''
@@ -600,16 +594,27 @@ const isNftToken = computed(() => {
   return tokenType === 1 || tokenType === 2
 })
 
-// ─── NFT preview card: either token is NFT type, or receiver is an NFT/asset ───
+// ─── NFT preview card: token is NFT type, or receiver is a Forever Moments NFT ───
+const FM_COLLECTION = '0xef54710b5a78b4926104a65594539521eb440d37'
+
+const receiverIsForeverMoment = computed(() => {
+  // Check via resolve API identity
+  const identity = toIdentity.value
+  if (identity?.lsp4TokenName === 'Forever Moments') return true
+  // Check via Envio data
+  if (envioCollectionName.value === 'Forever Moments') return true
+  // Check if receiver address is the FM collection itself
+  if (receiver.value?.toLowerCase() === FM_COLLECTION) return true
+  return false
+})
+
 const isLikeAction = computed(() => {
-  if (isBatchTransfer.value) return false // batch transfers get their own card
+  if (isBatchTransfer.value) return false
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
   // If the token itself is an NFT type (lsp4TokenType 1 or 2), always show NFT card
   if (isNftToken.value) return true
-  // Otherwise check if receiver is an NFT/asset (e.g. sending LIKES to a Forever Moment)
-  if (receiverIsProfile.value) return false
-  if (receiverIsAsset.value) return true
-  if (envioMomentName.value || envioCollectionName.value) return true
+  // "Liked with" only for Forever Moments NFTs — not any random asset
+  if (receiverIsForeverMoment.value) return true
   return false
 })
 
