@@ -467,10 +467,17 @@ const tokenAmount = computed(() => {
   if (amount) {
     try {
       let rawValue = amount.value
-      // Handle array of bytes (e.g. [1,1,1,...]) — convert to hex string
+      // Handle array of bytes (e.g. [1,1,1,...] or {0:1, 1:2, ...}) — convert to hex string
       if (Array.isArray(rawValue)) {
         const hex = '0x' + rawValue.map((b: number) => b.toString(16).padStart(2, '0')).join('')
         rawValue = hex
+      } else if (typeof rawValue === 'object' && rawValue !== null) {
+        // Object with numeric keys (e.g. {"0": 1, "1": 2, ...})
+        const keys = Object.keys(rawValue).sort((a, b) => Number(a) - Number(b))
+        if (keys.length > 0 && keys.every(k => !isNaN(Number(k)))) {
+          const hex = '0x' + keys.map(k => (rawValue as Record<string, number>)[k].toString(16).padStart(2, '0')).join('')
+          rawValue = hex
+        }
       }
       const val = BigInt(String(rawValue))
       const dec = BigInt(tokenDecimals.value)
