@@ -61,6 +61,10 @@
               />
             </div>
           </div>
+          <!-- LIKES count -->
+          <div v-if="likesCount && likesCount !== '0'" class="mt-2">
+            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ likesCount }} LIKES</span>
+          </div>
         </div>
       </a>
       <!-- Loading state -->
@@ -84,7 +88,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl, shortenAddress } from '../../lib/formatters'
-import { fetchFMomentByBlock, resolveAddresses } from '../../lib/api'
+import { fetchFMomentByBlock, resolveAddresses, fetchLikesBalance } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -118,6 +122,7 @@ interface MomentInfo {
 const moment = ref<MomentInfo | null>(null)
 const loading = ref(true)
 const momentImageUrl = ref('')
+const likesCount = ref<string | null>(null)
 
 const momentUrl = computed(() => {
   if (!moment.value) return '#'
@@ -132,6 +137,11 @@ onMounted(async () => {
     moment.value = found
     
     if (found) {
+      // Fetch LIKES balance
+      fetchLikesBalance(found.asset_id).then(count => {
+        if (count) likesCount.value = count
+      })
+
       // Resolve the moment asset to get its image
       queueResolve(props.chainId, [found.asset_id])
       

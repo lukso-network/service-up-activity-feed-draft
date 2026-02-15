@@ -76,6 +76,10 @@
           <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
             {{ shortenAddress(receiver) }}
           </span>
+          <!-- LIKES count -->
+          <div v-if="receiverLikesCount && receiverLikesCount !== '0'" class="mt-2">
+            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ receiverLikesCount }} LIKES</span>
+          </div>
         </div>
       </a>
     </template>
@@ -181,10 +185,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, shortenAddress, optimizeImageUrl } from '../../lib/formatters'
+import { fetchLikesBalance } from '../../lib/api'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -197,6 +202,7 @@ const props = defineProps<{
 
 const { getIdentity, queueResolve } = useAddressResolver()
 const detailsExpanded = ref(false)
+const receiverLikesCount = ref<string | null>(null)
 
 // The actual sender — for decoded txs, use args.from if available (the UP that initiated)
 const senderAddress = computed(() => {
@@ -313,6 +319,15 @@ const isLikeAction = computed(() => {
   if (tokenSymbol !== 'LIKES') return false
   // Receiver must be an asset, not a profile
   return receiverIsAsset.value
+})
+
+// Fetch LIKES count for the receiver asset when it's a like action
+watchEffect(() => {
+  if (isLikeAction.value && receiver.value) {
+    fetchLikesBalance(receiver.value).then(count => {
+      if (count) receiverLikesCount.value = count
+    })
+  }
 })
 
 // Detect Forever Moments posts: ERC725Y contracts that aren't LSP7/LSP8 tokens

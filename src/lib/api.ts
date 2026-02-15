@@ -159,3 +159,38 @@ export async function fetchFMomentByBlock(
     return null
   }
 }
+
+const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'
+
+/**
+ * Fetch LIKES token balance for an address from Envio indexer.
+ * Returns formatted whole number (decimals=18).
+ */
+export async function fetchLikesBalance(address: string): Promise<string | null> {
+  try {
+    const lower = address.toLowerCase()
+    const query = `{
+      Hold(where: {
+        asset_id: { _eq: "${LIKES_CONTRACT}" }
+        profile_id: { _eq: "${lower}" }
+      }, limit: 1) {
+        balance
+      }
+    }`
+
+    const res = await fetch(ENVIO_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const holds = data.data?.Hold
+    if (!holds?.length) return '0'
+    const raw = BigInt(holds[0].balance)
+    const whole = raw / 10n ** 18n
+    return whole.toLocaleString()
+  } catch {
+    return null
+  }
+}
