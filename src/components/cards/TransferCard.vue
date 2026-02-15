@@ -81,6 +81,49 @@
     <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
   </div>
 
+  <!-- Batch transfer: multiple recipients -->
+  <div v-else-if="isBatchTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+    <div class="flex gap-2">
+    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+        sent
+        <a
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <span>{{ batchTotalAmount }}</span>
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a>
+        to {{ batchCount }} profiles
+      </span>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </div>
+    <button
+      @click="detailsExpanded = !detailsExpanded"
+      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
+    >
+      <svg
+        class="w-4 h-4 transition-transform"
+        :class="{ 'rotate-180': detailsExpanded }"
+        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+    </div>
+    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
+  </div>
+
   <!-- Like action: token sent to an NFT/asset (e.g. LIKES → Forever Moments NFT) -->
   <ExtendedCard v-else-if="isLikeAction" :tx="(tx as any)">
     <template #header>
@@ -386,6 +429,12 @@ const mintNftImageUrl = computed(() => {
   return ''
 })
 
+// ─── Batch detection: args are arrays for transferBatch ───
+const isBatchTransfer = computed(() => {
+  const toArg = getArg('to')
+  return Array.isArray(toArg)
+})
+
 // ─── Transfer type from decoded standard ───
 const transferType = computed(() => {
   const standard = props.tx.standard?.toLowerCase() ?? ''
@@ -395,7 +444,12 @@ const transferType = computed(() => {
 })
 
 // ─── Sender: args.from (for token transfers) or tx.from (for LYX) ───
-const senderAddress = computed(() => getArgString('from') || props.tx.from)
+const senderAddress = computed(() => {
+  const from = getArg('from')
+  // For batch transfers, args.from is an array — use first element or tx.from
+  if (Array.isArray(from)) return (from[0] as string) || props.tx.from
+  return getArgString('from') || props.tx.from
+})
 const fromIdentity = computed(() => getIdentity(senderAddress.value))
 
 const senderIsAsset = computed(() => {
@@ -426,7 +480,37 @@ const fromProfileUrl = computed(() => {
 })
 
 // ─── Receiver: args.to (for token transfers) or tx.to (for LYX) ───
-const receiver = computed(() => getArgString('to') || props.tx.to)
+// For batch transfers, args.to is an array — don't use it as single receiver
+const receiver = computed(() => {
+  if (isBatchTransfer.value) return '' // no single receiver for batch
+  return getArgString('to') || props.tx.to
+})
+
+// Batch: count of recipients
+const batchCount = computed(() => {
+  if (!isBatchTransfer.value) return 0
+  const toArg = getArg('to')
+  return Array.isArray(toArg) ? toArg.length : 0
+})
+
+// Batch: total amount
+const batchTotalAmount = computed(() => {
+  if (!isBatchTransfer.value) return ''
+  const amounts = getArg('amount')
+  if (!Array.isArray(amounts)) return ''
+  try {
+    let total = 0n
+    for (const a of amounts) total += BigInt(String(a))
+    const dec = BigInt(tokenDecimals.value)
+    if (dec === 0n) return total.toString()
+    const divisor = 10n ** dec
+    const whole = total / divisor
+    const frac = total % divisor
+    if (frac === 0n) return whole.toLocaleString('en-US')
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+    return `${whole.toLocaleString('en-US')}.${fracStr}`
+  } catch { return '' }
+})
 const toIdentity = computed(() => getIdentity(receiver.value))
 
 const receiverIsAsset = computed(() => {
@@ -493,10 +577,14 @@ const isLikesTransfer = computed(() =>
   tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
 )
 
-// ─── NFT preview: show when receiver is an asset, not a profile ───
+// ─── NFT preview: show when receiver is an NFT/asset (lsp4TokenType 1 or 2), not a profile ───
 const isLikeAction = computed(() => {
+  if (isBatchTransfer.value) return false // batch transfers never show as "liked"
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
   if (receiverIsProfile.value) return false
+  // Use lsp4TokenType if available: 0=Token (never "like"), 1=NFT, 2=Collection
+  const receiverTokenType = toIdentity.value?.lsp4TokenType
+  if (receiverTokenType === 0) return false // it's a token, not an NFT
   if (receiverIsAsset.value) return true
   if (envioMomentName.value || envioCollectionName.value) return true
   return false
@@ -505,7 +593,7 @@ const isLikeAction = computed(() => {
 // Fetch Envio data for receiver (determines if it's an asset + gets moment details)
 let envioFetched = false
 watch(() => receiver.value, (addr) => {
-  if (addr && !envioFetched && (transferType.value === 'lsp7' || transferType.value === 'lyx')) {
+  if (addr && !envioFetched && !isBatchTransfer.value && (transferType.value === 'lsp7' || transferType.value === 'lyx')) {
     envioFetched = true
     fetchTokenName(addr).then(meta => {
       if (meta) {
