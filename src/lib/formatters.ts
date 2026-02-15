@@ -42,8 +42,9 @@ export function formatFullTime(timestamp: number): string {
 }
 
 export function formatLYX(value: string): string {
-  const num = BigInt(value)
-  if (num === 0n) return ''
+  try {
+    const num = BigInt(value)
+    if (num === 0n) return ''
 
   const whole = num / 10n ** 18n
   const fraction = num % 10n ** 18n
@@ -55,6 +56,9 @@ export function formatLYX(value: string): string {
   const fractionStr = fraction.toString().padStart(18, '0').replace(/0+$/, '')
   const displayFraction = fractionStr.slice(0, 4)
   return `${whole}.${displayFraction} LYX`
+  } catch {
+    return value
+  }
 }
 
 export function shortenAddress(address: string): string {

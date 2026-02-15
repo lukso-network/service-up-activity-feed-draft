@@ -305,15 +305,25 @@ const tokenAmount = computed(() => {
   if (!args) return ''
   const amount = args.find(a => a.name === 'amount')
   if (amount) {
-    const val = BigInt(String(amount.value))
-    const dec = BigInt(tokenDecimals.value)
-    if (dec === 0n) return val.toString()
-    const divisor = 10n ** dec
-    const whole = val / divisor
-    const frac = val % divisor
-    if (frac === 0n) return whole.toString()
-    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
-    return `${whole}.${fracStr}`
+    try {
+      let rawValue = amount.value
+      // Handle array of bytes (e.g. [1,1,1,...]) — convert to hex string
+      if (Array.isArray(rawValue)) {
+        const hex = '0x' + rawValue.map((b: number) => b.toString(16).padStart(2, '0')).join('')
+        rawValue = hex
+      }
+      const val = BigInt(String(rawValue))
+      const dec = BigInt(tokenDecimals.value)
+      if (dec === 0n) return val.toString()
+      const divisor = 10n ** dec
+      const whole = val / divisor
+      const frac = val % divisor
+      if (frac === 0n) return whole.toString()
+      const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+      return `${whole}.${fracStr}`
+    } catch {
+      return String(amount.value)
+    }
   }
   return ''
 })
