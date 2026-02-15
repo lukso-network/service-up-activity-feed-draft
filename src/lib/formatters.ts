@@ -154,6 +154,18 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
+  // setData/setDataBatch on token contracts (LSP7/LSP8 standard) — collection metadata update
+  if ((fn.includes('setdata') || fn.includes('setdatabatch')) &&
+      (standard.includes('lsp7') || standard.includes('lsp8') ||
+       standard.includes('digitalasset') || standard.includes('identifiabledigitalasset'))) {
+    return {
+      type: 'token_metadata_update',
+      label: 'Token Metadata Update',
+      icon: '🪙',
+      color: 'text-amber-500',
+    }
+  }
+
   // LSP7 Token transfers
   if (standard.includes('lsp7') || (standard.includes('digitalasset') && !standard.includes('identifiable'))) {
     return {
