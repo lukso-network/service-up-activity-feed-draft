@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import { fetchActivity } from '../lib/api'
 import type { Transaction } from '../lib/types'
 
@@ -36,12 +36,20 @@ export function useActivity(
   const nextToBlock = ref<number | null>(null)
   const latestBlockNumber = ref<number>(0)
 
+  const isFiltering = computed(() => !!filterFn?.value)
+
   function countVisible(): number {
     if (!filterFn?.value) return transactions.value.length
     return transactions.value.filter(filterFn.value).length
   }
 
-  async function fetchMoreUntilVisible(targetVisible: number) {
+  /**
+   * Keeps fetching pages until at least `targetVisible` items pass the
+   * current filter. Skipped entirely when no filter is active (dev mode)
+   * since every item is visible anyway.
+   */
+  async function ensureVisible(targetVisible: number) {
+    if (!isFiltering.value) return // dev mode — no filtering, single page is enough
     let fetches = 0
     while (countVisible() < targetVisible && hasMore.value && nextToBlock.value && fetches < MAX_AUTO_FETCHES) {
       fetches++
@@ -67,7 +75,7 @@ export function useActivity(
         latestBlockNumber.value = parseInt(res.data[0].blockNumber)
       }
       // Auto-fetch more if too few visible transactions
-      await fetchMoreUntilVisible(MIN_VISIBLE)
+      await ensureVisible(MIN_VISIBLE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load activity'
     } finally {
@@ -87,7 +95,7 @@ export function useActivity(
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
       // Keep fetching until we have another batch of visible items
-      await fetchMoreUntilVisible(visibleBefore + MIN_VISIBLE)
+      await ensureVisible(visibleBefore + MIN_VISIBLE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load more'
     } finally {
