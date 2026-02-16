@@ -32,6 +32,9 @@
       <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
         {{ displayName }}
       </span>
+      <span v-if="subtitle" class="text-sm text-neutral-400 dark:text-neutral-500 truncate">
+        {{ subtitle }}
+      </span>
       <!-- Creator -->
       <div v-if="creatorAddress" class="mt-1">
         <span class="text-xs text-neutral-400 dark:text-neutral-500">Created by</span>
@@ -77,8 +80,15 @@ const assetUrl = computed(() => {
 })
 
 const displayName = computed(() =>
-  tokenMeta.value?.name || identity.value?.lsp4TokenSymbol || identity.value?.lsp4TokenName || identity.value?.name || 'NFT'
+  tokenMeta.value?.name || identity.value?.lsp4TokenName || identity.value?.name || identity.value?.lsp4TokenSymbol || 'NFT'
 )
+
+// Subtitle: show token symbol if different from display name
+const subtitle = computed(() => {
+  const symbol = identity.value?.lsp4TokenSymbol
+  if (symbol && symbol !== displayName.value) return symbol
+  return ''
+})
 
 // Per-token metadata from Envio (for LSP8 individual token images)
 const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null } | null>(null)
