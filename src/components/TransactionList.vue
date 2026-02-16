@@ -78,6 +78,15 @@ watch(sentinel, (el) => {
   if (observer && el) observer.observe(el)
 })
 
+// Re-trigger observer when loading completes — if all fetched items were filtered,
+// the sentinel stays in viewport but observer won't re-fire (only fires on state changes)
+watch(() => props.loadingMore, (curr, prev) => {
+  if (prev && !curr && sentinel.value && observer) {
+    observer.unobserve(sentinel.value)
+    observer.observe(sentinel.value)
+  }
+})
+
 onUnmounted(() => {
   observer?.disconnect()
 })

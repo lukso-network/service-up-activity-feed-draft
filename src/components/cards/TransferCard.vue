@@ -30,7 +30,7 @@
   </ExtendedCard>
 
   <!-- Token Mint: compact card -->
-  <div v-else-if="isMint" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+  <div v-else-if="isMint" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
     <div class="flex gap-2">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
@@ -72,7 +72,7 @@
   </div>
 
   <!-- Batch transfer: multiple recipients -->
-  <div v-else-if="isBatchTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+  <div v-else-if="isBatchTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
     <div class="flex gap-2">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
@@ -226,7 +226,7 @@
   </ExtendedCard>
 
   <!-- Hyperlane Bridge transfer -->
-  <div v-else-if="isBridgeTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+  <div v-else-if="isBridgeTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
     <div class="flex gap-2">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
@@ -265,7 +265,7 @@
   </div>
 
   <!-- Standard transfer card -->
-  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
     <div class="flex gap-2">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <!-- Actor (sender) -->

@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4 overflow-hidden max-w-full">
+  <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 overflow-hidden max-w-full">
     <div class="flex gap-3">
       <!-- Main content area — wraps freely -->
       <div class="flex items-center gap-3 min-w-0 flex-wrap flex-1">

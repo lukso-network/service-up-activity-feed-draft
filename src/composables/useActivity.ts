@@ -2,7 +2,8 @@ import { ref, computed, type Ref } from 'vue'
 import { fetchActivity } from '../lib/api'
 import type { Transaction } from '../lib/types'
 
-const MIN_VISIBLE = 25
+const MIN_VISIBLE_INITIAL = 25
+const MIN_VISIBLE_MORE = 10
 const MAX_AUTO_FETCHES = 20 // safety limit
 
 function sortTxs(data: Transaction[]): Transaction[] {
@@ -77,7 +78,7 @@ export function useActivity(
         latestBlockNumber.value = parseInt(data[0].blockNumber)
       }
       // Auto-fetch more if too few visible transactions
-      await ensureVisible(MIN_VISIBLE)
+      await ensureVisible(MIN_VISIBLE_INITIAL)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load activity'
     } finally {
@@ -98,7 +99,7 @@ export function useActivity(
       hasMore.value = res.pagination?.hasMore ?? false
       nextToBlock.value = res.pagination?.nextToBlock ?? null
       // Keep fetching until we have another batch of visible items
-      await ensureVisible(visibleBefore + MIN_VISIBLE)
+      await ensureVisible(visibleBefore + MIN_VISIBLE_MORE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load more'
     } finally {
