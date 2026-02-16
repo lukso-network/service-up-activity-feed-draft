@@ -761,8 +761,6 @@ const transferComment = computed(() => {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim()
     // Filter out non-printable or empty results
     if (!text || text.length === 0) return ''
-    // Skip automated fee messages
-    if (text.includes('Listing fee') || text.includes('collection fee')) return ''
     return text
   } catch {
     return ''
