@@ -96,13 +96,33 @@ watch(() => [props.address, props.tokenId] as const, ([addr, tid]) => {
   }
 }, { immediate: true })
 
+/**
+ * Pick the best image from an array of image objects.
+ * LSP4 images are structured as images[imageIndex][sizeIndex], but Envio
+ * flattens all sizes of all images into one array. To pick from the FIRST
+ * image only, we group by IPFS hash (the path before size suffix) and use
+ * the first group.
+ */
 function pickImage(
   images: Array<{ src: string; width: number | null; height: number | null }> | undefined,
   minWidth: number,
-  renderWidth: number
+  renderWidth: number,
+  firstImageOnly = false
 ): string {
   if (!images?.length) return ''
-  const sorted = [...images].sort((a, b) => (a.width ?? 0) - (b.width ?? 0))
+
+  let candidates = images
+  if (firstImageOnly && images.length > 1) {
+    // Group by base IPFS hash (strip size suffix like /images-0-549x640)
+    const getBase = (src: string) => {
+      const match = src.match(/\/image\/([^/?]+)/)
+      return match?.[1] || src
+    }
+    const firstBase = getBase(images[0].src)
+    candidates = images.filter(i => getBase(i.src) === firstBase)
+  }
+
+  const sorted = [...candidates].sort((a, b) => (a.width ?? 0) - (b.width ?? 0))
   const pick = sorted.find(i => (i.width ?? 0) >= minWidth) || sorted[sorted.length - 1]
   return optimizeImageUrl(pick.src, renderWidth)
 }
@@ -112,11 +132,12 @@ const imageUrl = computed(() => {
   if (tokenMetaLoading.value) return ''
 
   // Prefer per-token images (from Envio) over collection-level images
+  // Use firstImageOnly=true because Envio flattens all LSP4 image sets into one array
   const tm = tokenMeta.value
   if (tm) {
-    const fromTokenImages = pickImage(tm.images, 120, 140)
+    const fromTokenImages = pickImage(tm.images, 120, 140, true)
     if (fromTokenImages) return fromTokenImages
-    const fromTokenIcons = pickImage(tm.icons, 120, 140)
+    const fromTokenIcons = pickImage(tm.icons, 120, 140, true)
     if (fromTokenIcons) return fromTokenIcons
   }
   // Fallback to collection-level images from resolve API
