@@ -41,9 +41,9 @@ export function useActivity(
     return transactions.value.filter(filterFn.value).length
   }
 
-  async function fetchMoreUntilFull() {
+  async function fetchMoreUntilVisible(targetVisible: number) {
     let fetches = 0
-    while (countVisible() < MIN_VISIBLE && hasMore.value && nextToBlock.value && fetches < MAX_AUTO_FETCHES) {
+    while (countVisible() < targetVisible && hasMore.value && nextToBlock.value && fetches < MAX_AUTO_FETCHES) {
       fetches++
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
@@ -67,7 +67,7 @@ export function useActivity(
         latestBlockNumber.value = parseInt(res.data[0].blockNumber)
       }
       // Auto-fetch more if too few visible transactions
-      await fetchMoreUntilFull()
+      await fetchMoreUntilVisible(MIN_VISIBLE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load activity'
     } finally {
@@ -78,6 +78,7 @@ export function useActivity(
   async function loadMore() {
     if (!nextToBlock.value || loadingMore.value) return
     loadingMore.value = true
+    const visibleBefore = countVisible()
     try {
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
@@ -85,8 +86,8 @@ export function useActivity(
       transactions.value = dedup([...transactions.value, ...sortTxs(res.data)])
       hasMore.value = res.pagination.hasMore
       nextToBlock.value = res.pagination.nextToBlock
-      // Keep fetching if still not enough visible
-      await fetchMoreUntilFull()
+      // Keep fetching until we have another batch of visible items
+      await fetchMoreUntilVisible(visibleBefore + MIN_VISIBLE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load more'
     } finally {
