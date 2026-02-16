@@ -120,6 +120,8 @@ const flattenedTransactions = computed(() => {
       
       if (recipientsAreAssets) {
         // Split into individual virtual transactions → each renders as "liked with"
+        const dataArg = tx.args?.find(a => a.name === 'data')
+        const dataArr = Array.isArray(dataArg?.value) ? dataArg!.value as string[] : []
         for (let i = 0; i < toArr.length; i++) {
           const virtualTx: Transaction & { _virtualKey?: string } = {
             ...tx,
@@ -129,7 +131,7 @@ const flattenedTransactions = computed(() => {
               { name: 'to', internalType: 'address', type: 'address', value: String(toArr[i]) },
               { name: 'amount', internalType: 'uint256', type: 'uint256', value: amountArr[i] },
               { name: 'force', internalType: 'bool', type: 'bool', value: false },
-              { name: 'data', internalType: 'bytes', type: 'bytes', value: '0x' },
+              { name: 'data', internalType: 'bytes', type: 'bytes', value: dataArr[i] || '0x' },
             ],
             functionName: 'transfer',
           }

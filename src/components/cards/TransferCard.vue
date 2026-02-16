@@ -219,6 +219,9 @@
     </template>
     <template #content>
       <FmMomentPreview :address="receiver" :chain-id="chainId" />
+      <div v-if="transferComment" class="mt-2 px-3 py-2 bg-neutral-50 dark:bg-neutral-800 rounded-xl text-sm text-neutral-700 dark:text-neutral-300 italic border-l-2 border-neutral-200 dark:border-neutral-600">
+        "{{ transferComment }}"
+      </div>
     </template>
   </ExtendedCard>
 
@@ -741,6 +744,30 @@ watch(() => receiver.value, (addr) => {
     })
   }
 }, { immediate: true })
+
+// ─── Transfer comment: UTF-8 text in the `data` arg of transfer/transferBatch ───
+const transferComment = computed(() => {
+  const dataArg = getArg('data')
+  if (!dataArg) return ''
+  // For single transfer: data is a hex string
+  // For batch (virtual tx after flattening): data is also a hex string
+  const hex = typeof dataArg === 'string' ? dataArg : ''
+  if (!hex || hex === '0x' || hex.length < 4) return ''
+  try {
+    const clean = hex.startsWith('0x') ? hex.slice(2) : hex
+    if (!clean.length) return ''
+    // Decode hex to bytes, then UTF-8
+    const bytes = new Uint8Array(clean.match(/.{1,2}/g)!.map(b => parseInt(b, 16)))
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim()
+    // Filter out non-printable or empty results
+    if (!text || text.length === 0) return ''
+    // Skip automated fee messages
+    if (text.includes('Listing fee') || text.includes('collection fee')) return ''
+    return text
+  } catch {
+    return ''
+  }
+})
 
 // (NFT preview + creator + LIKES count handled by NftPreview / FmMomentPreview components)
 // ─── Amount formatting ───
