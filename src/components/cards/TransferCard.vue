@@ -222,6 +222,45 @@
     </template>
   </ExtendedCard>
 
+  <!-- Hyperlane Bridge transfer -->
+  <div v-else-if="isBridgeTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
+    <div class="flex gap-2">
+    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+        bridged <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> via
+        <a
+          :href="HYPERLANE_BRIDGE_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >Hyperlane Bridge</a>
+        🌉
+      </span>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </div>
+    <button
+      @click="detailsExpanded = !detailsExpanded"
+      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
+    >
+      <svg
+        class="w-4 h-4 transition-transform"
+        :class="{ 'rotate-180': detailsExpanded }"
+        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+    </div>
+    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
+  </div>
+
   <!-- Standard transfer card -->
   <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm p-4">
     <div class="flex gap-2">
@@ -335,7 +374,7 @@ import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import NftPreview from '../shared/NftPreview.vue'
 import FmMomentPreview from '../shared/FmMomentPreview.vue'
-import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION } from '../../lib/events'
+import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION, HYPERLANE_BRIDGE_CONTRACT, HYPERLANE_BRIDGE_URL } from '../../lib/events'
 import { autoDecodeTokenId } from '../../lib/tokenId'
 
 const props = defineProps<{
@@ -671,6 +710,14 @@ const receiverIsForeverMoment = computed(() => {
   // Check if receiver address is the FM collection itself
   if (receiver.value?.toLowerCase() === FM_COLLECTION) return true
   return false
+})
+
+// ─── Hyperlane Bridge detection ───
+const isBridgeTransfer = computed(() => {
+  if (isBatchTransfer.value || isMint.value || isNftToken.value) return false
+  // The UP sends LYX (value transfer) to the Hyperlane bridge collateral contract
+  const target = receiver.value?.toLowerCase() || props.tx.to?.toLowerCase() || ''
+  return target === HYPERLANE_BRIDGE_CONTRACT
 })
 
 // "Liked with" = tokens sent to a Forever Moments NFT (not any random asset)

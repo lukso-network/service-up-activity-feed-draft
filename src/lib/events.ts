@@ -80,6 +80,10 @@ export const LSP26_ADDRESS = '0xf01103E5a9909Fc0DBe8166dA7085e0285daDDcA'
 export const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'
 export const FM_COLLECTION = '0xef54710b5a78b4926104a65594539521eb440d37'
 
+// Hyperlane Bridge — LSP7 collateral contract on LUKSO (wraps LYX for cross-chain bridging)
+export const HYPERLANE_BRIDGE_CONTRACT = '0xc210b2cb65ed3484892167f5e05f7ab496ab0598'
+export const HYPERLANE_BRIDGE_URL = 'https://nexus.hyperlane.xyz/?origin=lukso&token=LYX&destination=ethereum'
+
 // ═══════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
