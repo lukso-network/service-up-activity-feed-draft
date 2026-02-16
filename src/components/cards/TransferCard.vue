@@ -204,7 +204,7 @@
       />
       <div class="basis-full h-0 sm:hidden"></div>
       <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
-        {{ isLikesTransfer ? 'liked with' : 'sent' }}
+        {{ transferComment ? 'commented with' : (isLikesTransfer ? 'liked with' : 'sent') }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
@@ -218,10 +218,10 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <FmMomentPreview :address="receiver" :chain-id="chainId" />
-      <div v-if="transferComment" class="mt-2 px-3 py-2 bg-neutral-50 dark:bg-neutral-800 rounded-xl text-sm text-neutral-700 dark:text-neutral-300 italic border-l-2 border-neutral-200 dark:border-neutral-600">
-        "{{ transferComment }}"
+      <div v-if="transferComment" class="text-sm text-neutral-700 dark:text-neutral-300 mb-2.5">
+        {{ transferComment }}
       </div>
+      <FmMomentPreview :address="receiver" :chain-id="chainId" />
     </template>
   </ExtendedCard>
 
