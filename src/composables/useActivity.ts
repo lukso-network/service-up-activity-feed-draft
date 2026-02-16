@@ -56,10 +56,11 @@ export function useActivity(
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      transactions.value = dedup([...transactions.value, ...sortTxs(res.data)])
-      hasMore.value = res.pagination.hasMore
-      nextToBlock.value = res.pagination.nextToBlock
-      if (!res.data.length) break
+      const data = res.data || []
+      transactions.value = dedup([...transactions.value, ...sortTxs(data)])
+      hasMore.value = res.pagination?.hasMore ?? false
+      nextToBlock.value = res.pagination?.nextToBlock ?? null
+      if (!data.length) break
     }
   }
 
@@ -68,11 +69,12 @@ export function useActivity(
     error.value = null
     try {
       const res = await fetchActivity(chainId.value, address.value)
-      transactions.value = dedup(sortTxs(res.data))
-      hasMore.value = res.pagination.hasMore
-      nextToBlock.value = res.pagination.nextToBlock
-      if (res.data.length > 0) {
-        latestBlockNumber.value = parseInt(res.data[0].blockNumber)
+      const data = res.data || []
+      transactions.value = dedup(sortTxs(data))
+      hasMore.value = res.pagination?.hasMore ?? false
+      nextToBlock.value = res.pagination?.nextToBlock ?? null
+      if (data.length > 0) {
+        latestBlockNumber.value = parseInt(data[0].blockNumber)
       }
       // Auto-fetch more if too few visible transactions
       await ensureVisible(MIN_VISIBLE)
@@ -91,9 +93,10 @@ export function useActivity(
       const res = await fetchActivity(chainId.value, address.value, {
         toBlock: nextToBlock.value,
       })
-      transactions.value = dedup([...transactions.value, ...sortTxs(res.data)])
-      hasMore.value = res.pagination.hasMore
-      nextToBlock.value = res.pagination.nextToBlock
+      const data = res.data || []
+      transactions.value = dedup([...transactions.value, ...sortTxs(data)])
+      hasMore.value = res.pagination?.hasMore ?? false
+      nextToBlock.value = res.pagination?.nextToBlock ?? null
       // Keep fetching until we have another batch of visible items
       await ensureVisible(visibleBefore + MIN_VISIBLE)
     } catch (e) {
@@ -109,9 +112,10 @@ export function useActivity(
       const res = await fetchActivity(chainId.value, address.value, {
         fromBlock: latestBlockNumber.value + 1,
       })
-      if (res.data.length > 0) {
-        transactions.value = dedup([...res.data, ...transactions.value])
-        latestBlockNumber.value = parseInt(res.data[0].blockNumber)
+      const data = res.data || []
+      if (data.length > 0) {
+        transactions.value = dedup([...data, ...transactions.value])
+        latestBlockNumber.value = parseInt(data[0].blockNumber)
       }
     } catch {
       // Silently fail polling
