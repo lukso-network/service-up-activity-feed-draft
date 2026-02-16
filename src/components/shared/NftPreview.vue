@@ -82,6 +82,7 @@ const displayName = computed(() =>
 
 // Per-token metadata from Envio (for LSP8 individual token images)
 const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null } | null>(null)
+const tokenMetaLoading = ref(false)
 
 watch(() => [props.address, props.tokenId] as const, ([addr, tid]) => {
   tokenMeta.value = null
@@ -105,10 +106,6 @@ function pickImage(
   const pick = sorted.find(i => (i.width ?? 0) >= minWidth) || sorted[sorted.length - 1]
   return optimizeImageUrl(pick.src, renderWidth)
 }
-
-// When tokenId is set, wait for Envio data before showing any image
-// (prevents flash of collection image followed by token image)
-const tokenMetaLoading = ref(false)
 
 const imageUrl = computed(() => {
   // If we're waiting for per-token metadata, don't show the collection image
