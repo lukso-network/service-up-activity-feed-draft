@@ -218,7 +218,7 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <div v-if="transferComment" class="text-sm text-neutral-700 dark:text-neutral-300 mb-2.5">
+      <div v-if="transferComment" class="px-3 py-2 bg-neutral-50 dark:bg-neutral-800 rounded-xl text-sm text-neutral-700 dark:text-neutral-300 mb-2.5">
         {{ transferComment }}
       </div>
       <FmMomentPreview :address="receiver" :chain-id="chainId" />
