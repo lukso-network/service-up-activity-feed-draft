@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      // GitHub Pages SPA redirect
+      // Encodes the path+hash into a query param so it survives the redirect to /
+      var loc = window.location
+      var path = loc.pathname + loc.search + loc.hash
+      loc.replace(loc.origin + '/?_spa_redirect=' + encodeURIComponent(path))
+    </script>
+  </head>
+  <body></body>
+</html>
