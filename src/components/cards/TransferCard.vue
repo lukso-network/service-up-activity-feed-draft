@@ -2,13 +2,14 @@
   <!-- NFT Mint: extended card with NFT preview -->
   <ExtendedCard v-if="isNftMint" :tx="(tx as any)">
     <template #header>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <ProfileBadge
           :address="minterAddress"
           :name="minterIdentity?.name"
           :profile-url="minterProfileUrl"
           size="x-small"
         />
+        <div class="basis-full h-0 sm:hidden"></div>
         <span class="text-sm text-neutral-500 dark:text-neutral-400">minted</span>
         <a
           :href="`https://universaleverything.io/asset/${mintTokenContract}`"
