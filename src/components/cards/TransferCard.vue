@@ -244,7 +244,7 @@
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
         >Hyperlane Bridge</a>
-        🌉
+        🌉 <span class="font-medium text-neutral-800 dark:text-neutral-200">to Ethereum</span>
       </span>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
