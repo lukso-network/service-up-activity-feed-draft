@@ -32,7 +32,7 @@
     <!-- NFT card preview -->
     <div class="mt-3">
       <a
-        :href="`https://universaleverything.io/asset/${tokenAddress}`"
+        :href="assetUrl"
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
@@ -121,6 +121,13 @@ const actorAddress = computed(() => {
 })
 
 const tokenAddress = computed(() => props.tx.to)
+
+const assetUrl = computed(() => {
+  if (isTokenIdUpdate.value && rawTokenId.value) {
+    return `https://universaleverything.io/asset/${tokenAddress.value}/tokenId/${rawTokenId.value}`
+  }
+  return `https://universaleverything.io/asset/${tokenAddress.value}`
+})
 
 // Action text based on lsp4TokenType:
 // setDataForTokenId → always "updated NFT metadata" (per-item)

@@ -86,15 +86,12 @@ const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; heigh
 watch(() => [props.address, props.tokenId] as const, ([addr, tid]) => {
   tokenMeta.value = null
   if (addr && tid) {
-    console.log('[NftPreview] Fetching token metadata:', addr, tid)
+    tokenMetaLoading.value = true
     fetchTokenIdMetadata(addr, tid).then(meta => {
-      console.log('[NftPreview] Token metadata result:', meta ? `${meta.images?.length} images` : 'null')
       if (meta) tokenMeta.value = meta
-    }).catch(err => {
-      console.error('[NftPreview] Token metadata fetch failed:', err)
+    }).finally(() => {
+      tokenMetaLoading.value = false
     })
-  } else {
-    console.log('[NftPreview] No tokenId provided, skipping Envio fetch')
   }
 }, { immediate: true })
 
@@ -109,7 +106,14 @@ function pickImage(
   return optimizeImageUrl(pick.src, renderWidth)
 }
 
+// When tokenId is set, wait for Envio data before showing any image
+// (prevents flash of collection image followed by token image)
+const tokenMetaLoading = ref(false)
+
 const imageUrl = computed(() => {
+  // If we're waiting for per-token metadata, don't show the collection image
+  if (tokenMetaLoading.value) return ''
+
   // Prefer per-token images (from Envio) over collection-level images
   const tm = tokenMeta.value
   if (tm) {
