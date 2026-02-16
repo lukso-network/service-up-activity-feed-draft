@@ -160,6 +160,55 @@ export async function fetchFMomentByBlock(
   }
 }
 
+/**
+ * Fetch per-token metadata (images, name) from the Envio indexer.
+ * For LSP8 collections, each tokenId can have its own metadata set via setDataForTokenId.
+ * 
+ * @param collectionAddress - The LSP8 collection contract address
+ * @param tokenId - The raw bytes32 tokenId (0x-prefixed)
+ * @returns Token images and name, or null if not found
+ */
+export async function fetchTokenIdMetadata(
+  collectionAddress: string,
+  tokenId: string
+): Promise<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null } | null> {
+  try {
+    const lower = collectionAddress.toLowerCase()
+    const tokenIdLower = tokenId.toLowerCase()
+    
+    const query = `{
+      Token(where: {
+        lsp8ReferenceContract_id: { _eq: "${lower}" }
+        tokenId: { _eq: "${tokenIdLower}" }
+      }, limit: 1) {
+        asset_id
+        name
+        images { src width height }
+        icons { src width height }
+      }
+    }`
+
+    const res = await fetch(ENVIO_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const tokens = data.data?.Token
+    if (!tokens?.length) return null
+    const token = tokens[0]
+    return {
+      images: token.images || [],
+      icons: token.icons || [],
+      name: token.name || null,
+      assetId: token.asset_id || null,
+    }
+  } catch {
+    return null
+  }
+}
+
 const LIKES_CONTRACT = '0x403bfd53617555295347e0f7725cfda480ab801e'
 
 /**

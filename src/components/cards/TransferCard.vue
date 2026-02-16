@@ -24,7 +24,7 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <NftPreview :address="mintTokenContract" :chain-id="chainId" :token-id-label="mintTokenId" />
+      <NftPreview :address="mintTokenContract" :chain-id="chainId" :token-id-label="mintTokenId" :token-id="mintTokenIdRaw" />
     </template>
   </ExtendedCard>
 
@@ -188,7 +188,7 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>
     <template #content>
-      <NftPreview :address="tokenContractAddress" :chain-id="chainId" />
+      <NftPreview :address="tokenContractAddress" :chain-id="chainId" :token-id="transferTokenIdRaw" :token-id-label="transferTokenIdDisplay" />
     </template>
   </ExtendedCard>
 
@@ -401,15 +401,17 @@ const minterProfileUrl = computed(() => {
 // Mint token contract = Transfer event emitter OR tx.to (the contract being minted on)
 const mintTokenContract = computed(() => mintTransferLog.value?.address || props.tx.to || '')
 
-// Mint tokenId (for NFT mints)
-const mintTokenId = computed(() => {
-  // From Transfer event args
+// Mint tokenId — raw (for API lookups) and display (for labels)
+const mintTokenIdRaw = computed(() => {
   const logTokenId = mintTransferLog.value?.args?.find((a: any) => a.name === 'tokenId')
-  if (logTokenId?.value) return autoDecodeTokenId(String(logTokenId.value)).display
-  // From function args
+  if (logTokenId?.value) return String(logTokenId.value)
   const argTokenId = props.tx.args?.find(a => a.name === 'tokenId')
-  if (argTokenId?.value) return autoDecodeTokenId(String(argTokenId.value)).display
+  if (argTokenId?.value) return String(argTokenId.value)
   return ''
+})
+const mintTokenId = computed(() => {
+  if (!mintTokenIdRaw.value) return ''
+  return autoDecodeTokenId(mintTokenIdRaw.value).display
 })
 
 const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
@@ -631,6 +633,22 @@ const isLikesTransfer = computed(() =>
   tokenContractAddress.value?.toLowerCase() === LIKES_TOKEN ||
   tokenContractIdentity.value?.lsp4TokenSymbol?.toUpperCase() === 'LIKES'
 )
+
+// ─── Transfer tokenId (for LSP8 NFT transfers) ───
+const transferTokenIdRaw = computed(() => {
+  // From Transfer event log
+  const transferLog = props.tx.logs?.find((l: any) => l.eventName === 'Transfer')
+  const logTokenId = transferLog?.args?.find((a: any) => a.name === 'tokenId')
+  if (logTokenId?.value) return String(logTokenId.value)
+  // From function args
+  const argTokenId = props.tx.args?.find(a => a.name === 'tokenId')
+  if (argTokenId?.value) return String(argTokenId.value)
+  return ''
+})
+const transferTokenIdDisplay = computed(() => {
+  if (!transferTokenIdRaw.value) return ''
+  return autoDecodeTokenId(transferTokenIdRaw.value).display
+})
 
 // ─── Token type from the token contract being transferred ───
 // lsp4TokenType: 0=Token (currency), 1=NFT, 2=Collection
