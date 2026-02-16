@@ -39,6 +39,7 @@ import type { Component } from 'vue'
 import type { Transaction } from '../lib/types'
 import { useAddressResolver } from '../composables/useAddressResolver'
 import { classifyTransaction } from '../lib/formatters'
+import { LIKES_CONTRACT } from '../lib/events'
 import TransferCard from './cards/TransferCard.vue'
 import FollowCard from './cards/FollowCard.vue'
 import RawTransactionCard from './cards/RawTransactionCard.vue'
@@ -116,12 +117,24 @@ const flattenedTransactions = computed(() => {
       const amountArr = amountArg!.value as unknown[]
       const fromArr = Array.isArray(fromArg?.value) ? fromArg!.value as string[] : []
       
-      // Check if recipients are Assets (FM NFTs)
-      // Note: tx.to may be the token contract OR the KeyManager depending on call chain,
-      // so we check recipients directly rather than requiring tx.to === LIKES_CONTRACT
-      const recipientsAreAssets = toArr.some(addr => {
-        const identity = getIdentity(String(addr))
-        return identity && (identity as any).__gqltype === 'Asset'
+      // Check if this is a LIKES batch transfer to FM moments
+      // tx.to may be KeyManager, so also check Executed log target and wrappers
+      const likesAddr = LIKES_CONTRACT.toLowerCase()
+      const isLikesBatch = tx.to?.toLowerCase() === likesAddr ||
+        (tx.logs as any[])?.some((l: any) => 
+          l.eventName === 'Executed' && l.args?.some((a: any) => 
+            a.name === 'target' && String(a.value).toLowerCase() === likesAddr)) ||
+        (tx as any).wrappers?.some((w: any) => 
+          w.args?.some((a: any) => a.name === 'target' && String(a.value).toLowerCase() === likesAddr))
+
+      // Also check if recipients resolve as Assets
+      const recipientsAreAssets = isLikesBatch || toArr.some(addr => {
+        const identity = getIdentity(String(addr)) as any
+        if (!identity) return false
+        return identity.__gqltype === 'Asset' ||
+          identity.isLSP7 === true ||
+          (identity.standard && (identity.standard.includes('LSP7') || identity.standard.includes('LSP8'))) ||
+          !!identity.lsp4TokenName
       })
       
       if (recipientsAreAssets) {

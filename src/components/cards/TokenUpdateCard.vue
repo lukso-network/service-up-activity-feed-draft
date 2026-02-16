@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
     <!-- Header row -->
-    <div class="flex gap-2">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
       <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
         <ProfileBadge
           :address="actorAddress"
@@ -15,9 +15,8 @@
         </span>
         <TimeStamp :timestamp="tx.blockTimestamp" />
       </div>
-      <button
-        @click="detailsExpanded = !detailsExpanded"
-        class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
+      <div
+      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
       >
         <svg
           class="w-4 h-4 transition-transform"
@@ -26,7 +25,7 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
-      </button>
+      </div>
     </div>
 
     <!-- NFT card preview -->
@@ -107,6 +106,12 @@ const props = defineProps<{
 
 const { getIdentity, queueResolve } = useAddressResolver()
 const detailsExpanded = ref(false)
+
+function toggleIfBackground(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
+  detailsExpanded.value = !detailsExpanded.value
+}
 
 // ─── Shared logic ───
 

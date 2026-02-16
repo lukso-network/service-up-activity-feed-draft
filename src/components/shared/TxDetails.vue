@@ -89,10 +89,25 @@ const showRaw = ref(false)
 const copied = ref(false)
 
 function copyRawJson() {
-  navigator.clipboard.writeText(JSON.stringify(props.tx, null, 2)).then(() => {
+  const text = JSON.stringify(props.tx, null, 2)
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      copied.value = true
+      setTimeout(() => { copied.value = false }, 2000)
+    })
+  } else {
+    // Fallback for non-HTTPS (e.g. Tailscale dev)
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
-  })
+  }
 }
 
 function formatNumber(val: unknown): string {

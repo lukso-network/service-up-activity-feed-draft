@@ -31,7 +31,7 @@
 
   <!-- Token Mint: compact card -->
   <div v-else-if="isMint" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
         :address="minterAddress"
@@ -55,8 +55,7 @@
       </span>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
-    <button
-      @click="detailsExpanded = !detailsExpanded"
+    <div
       class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
     >
       <svg
@@ -66,14 +65,14 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
-    </button>
+    </div>
     </div>
     <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
   </div>
 
   <!-- Batch transfer: multiple recipients -->
   <div v-else-if="isBatchTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
         :address="senderAddress"
@@ -117,8 +116,7 @@
       </div>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
-    <button
-      @click="detailsExpanded = !detailsExpanded"
+    <div
       class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
     >
       <svg
@@ -128,7 +126,7 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
-    </button>
+    </div>
     </div>
     <!-- Expanded: individual recipients + amounts -->
     <div v-if="detailsExpanded" class="mt-3 space-y-2">
@@ -227,7 +225,7 @@
 
   <!-- Hyperlane Bridge transfer -->
   <div v-else-if="isBridgeTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <ProfileBadge
         :address="senderAddress"
@@ -248,8 +246,7 @@
       </span>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
-    <button
-      @click="detailsExpanded = !detailsExpanded"
+    <div
       class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
     >
       <svg
@@ -259,14 +256,14 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
-    </button>
+    </div>
     </div>
     <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
   </div>
 
   <!-- Standard transfer card -->
   <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
     <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
       <!-- Actor (sender) -->
       <template v-if="senderIsAsset">
@@ -348,8 +345,7 @@
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </div>
     <!-- Chevron — always top-right -->
-    <button
-      @click="detailsExpanded = !detailsExpanded"
+    <div
       class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
     >
       <svg
@@ -359,7 +355,7 @@
       >
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
-    </button>
+    </div>
     </div>
     <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
   </div>
@@ -387,6 +383,12 @@ const props = defineProps<{
 
 const { getIdentity } = useAddressResolver()
 const detailsExpanded = ref(false)
+
+function toggleIfBackground(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
+  detailsExpanded.value = !detailsExpanded.value
+}
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
 

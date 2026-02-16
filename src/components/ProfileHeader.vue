@@ -24,7 +24,7 @@
             :name="profile.name || ''"
             :address="address"
             prefix="@"
-            size="medium"
+            size="large"
           ></lukso-username>
         </div>
       </div>

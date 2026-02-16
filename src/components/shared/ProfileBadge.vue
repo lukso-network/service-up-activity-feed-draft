@@ -15,16 +15,27 @@
       :name="name || ''"
       :address="address"
       prefix="@"
-      :size="size"
+      :size="nextSize"
     ></lukso-username>
   </a>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+
+const sizeSteps = ['x-small', 'small', 'medium', 'large'] as const
+
+const props = defineProps<{
   address: string
   name?: string
   profileUrl?: string
   size?: string
 }>()
+
+const nextSize = computed(() => {
+  const cur = props.size || 'x-small'
+  const idx = sizeSteps.indexOf(cur as any)
+  const bump = Math.min(idx + 2, sizeSteps.length - 1)
+  return idx >= 0 ? sizeSteps[bump] : cur
+})
 </script>

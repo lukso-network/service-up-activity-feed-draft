@@ -1,13 +1,12 @@
 <template>
   <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 overflow-hidden max-w-full">
     <!-- Header: content wraps, chevron stays top-right -->
-    <div class="flex gap-2 mb-3">
+    <div class="flex gap-2 mb-3 cursor-pointer" @click="toggleIfBackground">
       <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
         <slot name="header" />
       </div>
-      <button
+      <div
         v-if="tx"
-        @click="expanded = !expanded"
         class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
       >
         <svg
@@ -17,7 +16,7 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
-      </button>
+      </div>
     </div>
     <!-- Content area -->
     <div>
@@ -31,9 +30,16 @@
 import { ref } from 'vue'
 import TxDetails from '../shared/TxDetails.vue'
 
-defineProps<{
+const props = defineProps<{
   tx?: Record<string, unknown>
 }>()
 
 const expanded = ref(false)
+
+function toggleIfBackground(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
+  if (!props.tx) return
+  expanded.value = !expanded.value
+}
 </script>

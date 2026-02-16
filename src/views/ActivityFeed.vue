@@ -117,8 +117,12 @@ watch(transactions, (txs) => {
     // Addresses from args
     if (tx.args) {
       for (const arg of tx.args) {
-        if (arg.type === 'address' && typeof arg.value === 'string') {
+        if (typeof arg.value === 'string' && (arg.type === 'address' || arg.internalType === 'address')) {
           addresses.add(arg.value)
+        } else if (Array.isArray(arg.value) && (arg.type === 'address[]' || arg.internalType === 'address[]')) {
+          for (const v of arg.value) {
+            if (typeof v === 'string') addresses.add(v)
+          }
         }
       }
     }
