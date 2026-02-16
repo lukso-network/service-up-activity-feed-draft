@@ -2,12 +2,23 @@
   <div class="space-y-3 p-4">
     <TransitionGroup name="tx-list">
       <div
-        v-for="tx in flattenedTransactions"
-        :key="(tx as any)._virtualKey || tx.transactionHash"
+        v-for="item in displayItems"
+        :key="item.key"
       >
+        <!-- Follow group -->
+        <FollowGroupCard
+          v-if="item.type === 'follow-group'"
+          :transactions="item.transactions!"
+          :chain-id="chainId"
+          :group-type="item.groupType!"
+          :shared-address="item.sharedAddress!"
+          :is-unfollow="item.isUnfollow!"
+        />
+        <!-- Regular transaction -->
         <component
-          :is="getCardComponent(tx)"
-          :tx="tx"
+          v-else
+          :is="getCardComponent(item.tx!)"
+          :tx="item.tx!"
           :chain-id="chainId"
         />
       </div>
@@ -48,6 +59,13 @@ import PermissionCard from './cards/PermissionCard.vue'
 import GenericCard from './cards/GenericCard.vue'
 import MomentCard from './cards/MomentCard.vue'
 import TokenUpdateCard from './cards/TokenUpdateCard.vue'
+import FollowGroupCard from './cards/FollowGroupCard.vue'
+import {
+  FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
+  LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
+  findLogByEvent, decodeAddressPairFromData,
+  findURByTypeId, getAddressFromURReceivedData
+} from '../lib/events'
 
 const props = defineProps<{
   transactions: Transaction[]
@@ -162,6 +180,149 @@ const flattenedTransactions = computed(() => {
     result.push(tx)
   }
   return result
+})
+
+// --- Follow grouping helpers ---
+
+function getFollowActor(tx: Transaction): string {
+  const followLog = findLogByEvent(tx.logs, FOLLOW_EVENT) || findLogByEvent(tx.logs, UNFOLLOW_EVENT)
+  if (followLog?.args) {
+    const actor = followLog.args.find((a: any) => a.name === 'follower' || a.name === 'unfollower')
+    if (actor?.value) return String(actor.value).toLowerCase()
+  }
+  if (followLog) {
+    const pair = decodeAddressPairFromData(followLog.data)
+    if (pair) return pair[0].toLowerCase()
+  }
+  const executed = findLogByEvent(tx.logs, EXECUTED_EVENT)
+  if (executed?.address) return executed.address.toLowerCase()
+  const followUR = findURByTypeId(tx.logs, LSP26_FOLLOW_NOTIFICATION) || findURByTypeId(tx.logs, LSP26_UNFOLLOW_NOTIFICATION)
+  const urAddr = getAddressFromURReceivedData(followUR)
+  if (urAddr) return urAddr.toLowerCase()
+  return tx.from.toLowerCase()
+}
+
+function getFollowTarget(tx: Transaction): string {
+  const followLog = findLogByEvent(tx.logs, FOLLOW_EVENT) || findLogByEvent(tx.logs, UNFOLLOW_EVENT)
+  if (followLog?.args) {
+    const target = followLog.args.find((a: any) => a.name === 'followed' || a.name === 'unfollowed')
+    if (target?.value) return String(target.value).toLowerCase()
+  }
+  if (followLog) {
+    const pair = decodeAddressPairFromData(followLog.data)
+    if (pair) return pair[1].toLowerCase()
+  }
+  const args = tx.args
+  if (args) {
+    const addr = args.find(a => a.name === 'addr')
+    if (addr && typeof addr.value === 'string') return addr.value.toLowerCase()
+  }
+  return (tx.to || '').toLowerCase()
+}
+
+type DisplayItem = {
+  key: string
+  type: 'tx' | 'follow-group'
+  tx?: Transaction & { _virtualKey?: string }
+  transactions?: Transaction[]
+  groupType?: 'same-actor' | 'same-target'
+  sharedAddress?: string
+  isUnfollow?: boolean
+}
+
+const displayItems = computed<DisplayItem[]>(() => {
+  const txs = flattenedTransactions.value
+  const items: DisplayItem[] = []
+  let i = 0
+
+
+  while (i < txs.length) {
+    const tx = txs[i]
+    const { type } = classifyTransaction(tx)
+
+    if (type === 'follow' || type === 'unfollow') {
+      // Collect consecutive follows/unfollows of the same type
+      const isUnfollow = type === 'unfollow'
+      const run: (Transaction & { _virtualKey?: string })[] = [tx]
+      let j = i + 1
+      while (j < txs.length) {
+        const { type: nextType } = classifyTransaction(txs[j])
+        if ((isUnfollow && nextType === 'unfollow') || (!isUnfollow && nextType === 'follow')) {
+          run.push(txs[j])
+          j++
+        } else {
+          break
+        }
+      }
+
+      if (run.length >= 2) {
+        // Try to find a grouping pattern
+        const actors = run.map(t => getFollowActor(t))
+        const targets = run.map(t => getFollowTarget(t))
+
+        const allSameActor = actors.every(a => a === actors[0])
+        const allSameTarget = targets.every(t => t === targets[0])
+
+        if (allSameActor) {
+          items.push({
+            key: `follow-group-${run[0].transactionHash}`,
+            type: 'follow-group',
+            transactions: run,
+            groupType: 'same-actor',
+            sharedAddress: getFollowActor(run[0]),
+            isUnfollow,
+          })
+          i = j
+          continue
+        } else if (allSameTarget) {
+          items.push({
+            key: `follow-group-${run[0].transactionHash}`,
+            type: 'follow-group',
+            transactions: run,
+            groupType: 'same-target',
+            sharedAddress: getFollowTarget(run[0]),
+            isUnfollow,
+          })
+          i = j
+          continue
+        }
+      }
+
+      // Render individually (run < 3 or no clear grouping pattern)
+      for (const t of run) {
+        items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
+      }
+      i = j
+    } else if (type === 'profile_update') {
+      // Group consecutive profile updates from same person with same update type
+      const run: (Transaction & { _virtualKey?: string })[] = [tx]
+      const actor = tx.to?.toLowerCase() || tx.from.toLowerCase()
+      let j = i + 1
+      while (j < txs.length) {
+        const { type: nextType } = classifyTransaction(txs[j])
+        const nextActor = txs[j].to?.toLowerCase() || txs[j].from.toLowerCase()
+        if (nextType === 'profile_update' && nextActor === actor) {
+          run.push(txs[j])
+          j++
+        } else {
+          break
+        }
+      }
+
+      if (run.length >= 2) {
+        // Collapse into single card — attach all grouped txs for pagination
+        const representative = { ...run[0], _groupCount: run.length, _groupTxs: run } as any
+        items.push({ key: run[0].transactionHash, type: 'tx', tx: representative })
+      } else {
+        items.push({ key: tx.transactionHash, type: 'tx', tx })
+      }
+      i = j
+    } else {
+      items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
+      i++
+    }
+  }
+  return items
 })
 
 function getCardComponent(tx: Transaction): Component {
