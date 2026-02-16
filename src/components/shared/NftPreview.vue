@@ -69,7 +69,12 @@ const { getIdentity, queueResolve } = useAddressResolver()
 
 const identity = computed(() => getIdentity(props.address))
 
-const assetUrl = computed(() => `https://universaleverything.io/asset/${props.address}`)
+const assetUrl = computed(() => {
+  if (props.tokenId) {
+    return `https://universaleverything.io/asset/${props.address}/tokenId/${props.tokenId}`
+  }
+  return `https://universaleverything.io/asset/${props.address}`
+})
 
 const displayName = computed(() =>
   tokenMeta.value?.name || identity.value?.lsp4TokenSymbol || identity.value?.lsp4TokenName || identity.value?.name || 'NFT'
@@ -81,9 +86,15 @@ const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; heigh
 watch(() => [props.address, props.tokenId] as const, ([addr, tid]) => {
   tokenMeta.value = null
   if (addr && tid) {
+    console.log('[NftPreview] Fetching token metadata:', addr, tid)
     fetchTokenIdMetadata(addr, tid).then(meta => {
+      console.log('[NftPreview] Token metadata result:', meta ? `${meta.images?.length} images` : 'null')
       if (meta) tokenMeta.value = meta
+    }).catch(err => {
+      console.error('[NftPreview] Token metadata fetch failed:', err)
     })
+  } else {
+    console.log('[NftPreview] No tokenId provided, skipping Envio fetch')
   }
 }, { immediate: true })
 
