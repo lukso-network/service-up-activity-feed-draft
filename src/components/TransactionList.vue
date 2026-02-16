@@ -255,42 +255,47 @@ const displayItems = computed<DisplayItem[]>(() => {
         }
       }
 
-      if (run.length >= 2) {
-        // Try to find a grouping pattern
-        const actors = run.map(t => getFollowActor(t))
-        const targets = run.map(t => getFollowTarget(t))
+      // Greedily split the run into sub-groups by shared actor or target
+      let r = 0
+      while (r < run.length) {
+        const actor = getFollowActor(run[r])
+        const target = getFollowTarget(run[r])
+        // Try same-actor sub-group
+        let end = r + 1
+        while (end < run.length && getFollowActor(run[end]) === actor) end++
+        const actorGroupLen = end - r
+        // Try same-target sub-group
+        let endT = r + 1
+        while (endT < run.length && getFollowTarget(run[endT]) === target) endT++
+        const targetGroupLen = endT - r
 
-        const allSameActor = actors.every(a => a === actors[0])
-        const allSameTarget = targets.every(t => t === targets[0])
-
-        if (allSameActor) {
+        // Pick the larger sub-group (prefer actor grouping)
+        if (actorGroupLen >= 2 && actorGroupLen >= targetGroupLen) {
           items.push({
-            key: `follow-group-${run[0].transactionHash}`,
+            key: `follow-group-${run[r].transactionHash}`,
             type: 'follow-group',
-            transactions: run,
+            transactions: run.slice(r, end),
             groupType: 'same-actor',
-            sharedAddress: getFollowActor(run[0]),
+            sharedAddress: actor,
             isUnfollow,
           })
-          i = j
-          continue
-        } else if (allSameTarget) {
+          r = end
+        } else if (targetGroupLen >= 2) {
           items.push({
-            key: `follow-group-${run[0].transactionHash}`,
+            key: `follow-group-${run[r].transactionHash}`,
             type: 'follow-group',
-            transactions: run,
+            transactions: run.slice(r, endT),
             groupType: 'same-target',
-            sharedAddress: getFollowTarget(run[0]),
+            sharedAddress: target,
             isUnfollow,
           })
-          i = j
-          continue
+          r = endT
+        } else {
+          // Single follow, no group
+          const t = run[r]
+          items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
+          r++
         }
-      }
-
-      // Render individually (run < 3 or no clear grouping pattern)
-      for (const t of run) {
-        items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
       }
       i = j
     } else if (type === 'profile_update') {

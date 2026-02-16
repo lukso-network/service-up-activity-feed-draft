@@ -87,7 +87,7 @@
     </div>
 
     <!-- Expanded: individual follow cards -->
-    <div v-if="expanded" class="mt-3 space-y-2 border-t border-neutral-100 dark:border-neutral-800 pt-3">
+    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-800 border-t border-neutral-100 dark:border-neutral-800 nested-cards">
       <FollowCard
         v-for="tx in transactions"
         :key="tx.transactionHash"
@@ -184,3 +184,11 @@ function toggleIfBackground(e: MouseEvent) {
   expanded.value = !expanded.value
 }
 </script>
+
+<style scoped>
+.nested-cards :deep(> *) {
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+</style>
