@@ -66,8 +66,8 @@
           <span class="text-lg font-bold text-neutral-800 dark:text-neutral-200 truncate">
             {{ nftDisplayName }}
           </span>
-          <span v-if="isTokenIdUpdate && collectionName" class="text-sm text-neutral-400 dark:text-neutral-500">
-            {{ collectionName }}
+          <span v-if="subtitle" class="text-sm text-neutral-400 dark:text-neutral-500">
+            {{ subtitle }}
           </span>
           <!-- Creator -->
           <div v-if="creatorAddress" class="mt-1">
@@ -213,9 +213,25 @@ const nftDisplayName = computed(() => {
     || 'NFT'
 })
 
-const collectionName = computed(() =>
-  collectionIdentity.value?.lsp4TokenName || collectionIdentity.value?.name || ''
-)
+// Subtitle: for per-token updates show collection name/symbol,
+// for collection-level updates show the token symbol
+const subtitle = computed(() => {
+  const id = collectionIdentity.value
+  if (!id) return ''
+  if (isTokenIdUpdate.value) {
+    // Per-token update: show collection symbol, or name if symbol matches display name
+    const symbol = id.lsp4TokenSymbol
+    const name = id.lsp4TokenName || id.name
+    // Prefer symbol if it differs from the display name
+    if (symbol && symbol !== nftDisplayName.value) return symbol
+    if (name && name !== nftDisplayName.value) return name
+    return ''
+  }
+  // Collection-level update: show symbol as subtitle
+  const symbol = id.lsp4TokenSymbol
+  if (symbol && symbol !== nftDisplayName.value) return symbol
+  return ''
+})
 
 // ─── Creator ───
 const creatorAddress = computed(() => {
