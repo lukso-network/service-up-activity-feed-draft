@@ -92,7 +92,7 @@ const { getIdentity } = useAddressResolver()
  * Detection: recipients resolve as __gqltype="Asset" (not "Profile").
  * This is reactive — re-evaluates when address identities resolve.
  */
-import { LIKES_CONTRACT } from '../lib/events'
+// LIKES_CONTRACT kept in events.ts for reference; batch splitting uses recipient identity check
 
 const flattenedTransactions = computed(() => {
   const result: (Transaction & { _virtualKey?: string })[] = []
@@ -107,13 +107,10 @@ const flattenedTransactions = computed(() => {
       const amountArr = amountArg!.value as unknown[]
       const fromArr = Array.isArray(fromArg?.value) ? fromArg!.value as string[] : []
       
-      // Check: is this LIKES being sent to Assets (FM NFTs)?
-      // For transferBatch, tx.to IS the token contract
-      const tokenAddr = tx.to?.toLowerCase() || ''
-      const isLikesBatch = tokenAddr === LIKES_CONTRACT
-      
-      // Check if recipients are Assets (resolved)
-      const recipientsAreAssets = isLikesBatch && toArr.some(addr => {
+      // Check if recipients are Assets (FM NFTs)
+      // Note: tx.to may be the token contract OR the KeyManager depending on call chain,
+      // so we check recipients directly rather than requiring tx.to === LIKES_CONTRACT
+      const recipientsAreAssets = toArr.some(addr => {
         const identity = getIdentity(String(addr))
         return identity && (identity as any).__gqltype === 'Asset'
       })
