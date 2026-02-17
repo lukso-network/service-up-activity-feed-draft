@@ -1,6 +1,6 @@
 import type { ActivityResponse, ResolveAddressesResponse, AddressIdentity } from './types'
 
-const API_BASE = 'https://auth-simple.pages.dev'
+const API_BASE = 'https://pr-112.auth-simple.pages.dev'
 
 function parseBigIntStrings(obj: unknown): unknown {
   if (typeof obj === 'string' && /^\d+n$/.test(obj)) {
