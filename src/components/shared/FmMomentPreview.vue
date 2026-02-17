@@ -15,6 +15,17 @@
           :alt="momentName"
           loading="lazy"
         />
+        <video
+          v-else-if="videoUrl"
+          ref="videoRef"
+          :src="videoUrl"
+          class="w-[140px] h-[140px] object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+        />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
             :profile-address="address"
@@ -59,10 +70,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { fetchLikesBalance, fetchTokenName } from '../../lib/api'
+import { fetchLikesBalance, fetchTokenName, type TokenAsset } from '../../lib/api'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -77,6 +88,7 @@ const identity = computed(() => getIdentity(props.address))
 // Envio data (individual moment name + collection name)
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
+const envioAssets = ref<TokenAsset[]>([])
 const likesCount = ref<string | null>(null)
 
 let fetched = false
@@ -87,6 +99,7 @@ watch(() => props.address, (addr) => {
       if (meta) {
         if (meta.name) envioMomentName.value = meta.name
         if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
+        if (meta.assets?.length) envioAssets.value = meta.assets
       }
     })
     fetchLikesBalance(addr).then(count => {
@@ -120,6 +133,33 @@ const imageUrl = computed(() => {
     return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
   }
   return ''
+})
+
+// Video fallback: only used when no image is available
+const videoUrl = computed(() => {
+  if (imageUrl.value) return ''
+  const video = envioAssets.value.find(a => a.fileType?.startsWith('video/'))
+  return video?.src || ''
+})
+
+const videoRef = ref<HTMLVideoElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+watch(videoRef, (el) => {
+  observer?.disconnect()
+  if (!el) return
+  observer = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) {
+      el.play().catch(() => {})
+    } else {
+      el.pause()
+    }
+  })
+  observer.observe(el)
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
 })
 
 // Creator from lsp4Creators or owner_id

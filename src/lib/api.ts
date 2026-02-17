@@ -64,7 +64,13 @@ const ENVIO_GRAPHQL = 'https://envio.lukso-mainnet.universal.tech/v1/graphql'
  * Queries both the Asset table (direct) and Token table (LSP8 collection tokens).
  * Only returns the name — images come from the resolve API.
  */
-export async function fetchTokenName(address: string): Promise<Partial<AddressIdentity> | null> {
+export interface TokenAsset {
+  src: string
+  url?: string
+  fileType?: string
+}
+
+export async function fetchTokenName(address: string): Promise<(Partial<AddressIdentity> & { assets?: TokenAsset[] }) | null> {
   try {
     const lower = address.toLowerCase()
 
@@ -73,12 +79,14 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
       Asset_by_pk(id: "${lower}") {
         name
         description
+        assets { src url fileType }
       }
       Token(where: {asset_id: {_eq: "${lower}"}}, limit: 1) {
         name
         description
         lsp4TokenName
         lsp8ReferenceContract_id
+        assets { src url fileType }
       }
     }`
 
@@ -97,11 +105,10 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
       if (token.name || token.lsp4TokenName) {
         return {
           address: lower,
-          // name = individual token name (e.g. "The Identity Layer")
-          // lsp4TokenName = collection name (e.g. "Forever Moments")
           name: token.name || undefined,
           lsp4TokenName: token.lsp4TokenName || undefined,
           description: token.description || undefined,
+          assets: token.assets || undefined,
         }
       }
     }
@@ -113,6 +120,7 @@ export async function fetchTokenName(address: string): Promise<Partial<AddressId
         address: lower,
         lsp4TokenName: asset.name,
         description: asset.description || undefined,
+        assets: asset.assets || undefined,
       }
     }
 
@@ -171,11 +179,11 @@ export async function fetchFMomentByBlock(
 export async function fetchTokenIdMetadata(
   collectionAddress: string,
   tokenId: string
-): Promise<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null } | null> {
+): Promise<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null; assets: TokenAsset[] } | null> {
   try {
     const lower = collectionAddress.toLowerCase()
     const tokenIdLower = tokenId.toLowerCase()
-    
+
     const query = `{
       Token(where: {
         lsp8ReferenceContract_id: { _eq: "${lower}" }
@@ -185,6 +193,7 @@ export async function fetchTokenIdMetadata(
         name
         images { src width height }
         icons { src width height }
+        assets { src url fileType }
       }
     }`
 
@@ -203,6 +212,7 @@ export async function fetchTokenIdMetadata(
       icons: token.icons || [],
       name: token.name || null,
       assetId: token.asset_id || null,
+      assets: token.assets || [],
     }
   } catch {
     return null

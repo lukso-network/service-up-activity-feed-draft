@@ -15,6 +15,17 @@
           :alt="displayName"
           loading="lazy"
         />
+        <video
+          v-else-if="videoUrl"
+          ref="videoRef"
+          :src="videoUrl"
+          class="w-[140px] h-[140px] object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+        />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
             :profile-address="address"
@@ -55,10 +66,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { fetchTokenIdMetadata } from '../../lib/api'
+import { fetchTokenIdMetadata, type TokenAsset } from '../../lib/api'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -91,7 +102,7 @@ const subtitle = computed(() => {
 })
 
 // Per-token metadata from Envio (for LSP8 individual token images)
-const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null } | null>(null)
+const tokenMeta = ref<{ images: Array<{ src: string; width: number | null; height: number | null }>; icons: Array<{ src: string; width: number | null; height: number | null }>; name: string | null; assetId: string | null; assets: TokenAsset[] } | null>(null)
 const tokenMetaLoading = ref(false)
 
 watch(() => [props.address, props.tokenId] as const, ([addr, tid]) => {
@@ -133,6 +144,35 @@ const imageUrl = computed(() => {
   const fromImages = pickImage(identity.value?.images, 120, 140)
   if (fromImages) return fromImages
   return pickImage(identity.value?.icons, 120, 140)
+})
+
+// Video fallback: only used when no image is available
+const videoUrl = computed(() => {
+  if (imageUrl.value) return ''
+  const assets = tokenMeta.value?.assets
+  if (!assets?.length) return ''
+  const video = assets.find(a => a.fileType?.startsWith('video/'))
+  return video?.src || ''
+})
+
+const videoRef = ref<HTMLVideoElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+watch(videoRef, (el) => {
+  observer?.disconnect()
+  if (!el) return
+  observer = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) {
+      el.play().catch(() => {})
+    } else {
+      el.pause()
+    }
+  })
+  observer.observe(el)
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
 })
 
 // Creator from lsp4Creators or owner_id
