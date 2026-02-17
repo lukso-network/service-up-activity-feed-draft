@@ -30,127 +30,99 @@
   </ExtendedCard>
 
   <!-- Token Mint: compact card -->
-  <div v-else-if="isMint" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
-    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
-      <ProfileBadge
-        :address="minterAddress"
-        :name="minterIdentity?.name"
-        :profile-url="minterProfileUrl"
-        size="x-small"
-      />
-      <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-        minted
-        <a
-          :href="`https://universaleverything.io/asset/${mintTokenContract}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >
-          <span>{{ mintAmount }}</span>
-          <img v-if="mintTokenIconUrl" :src="mintTokenIconUrl" class="w-4 h-4 rounded-full" :alt="mintTokenName" />
-          <span>{{ mintTokenName }}</span>
-        </a>
-      </span>
-      <TimeStamp :timestamp="tx.blockTimestamp" />
-    </div>
-    <div
-      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
-    >
-      <svg
-        class="w-4 h-4 transition-transform"
-        :class="{ 'rotate-180': detailsExpanded }"
-        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+  <CompactCard v-else-if="isMint" :tx="(tx as any)">
+    <ProfileBadge
+      :address="minterAddress"
+      :name="minterIdentity?.name"
+      :profile-url="minterProfileUrl"
+      size="x-small"
+    />
+    <div class="basis-full h-0 sm:hidden"></div>
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      minted
+      <a
+        :href="`https://universaleverything.io/asset/${mintTokenContract}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </div>
-    </div>
-    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
-  </div>
+        <span>{{ mintAmount }}</span>
+        <img v-if="mintTokenIconUrl" :src="mintTokenIconUrl" class="w-4 h-4 rounded-full" :alt="mintTokenName" />
+        <span>{{ mintTokenName }}</span>
+      </a>
+    </span>
+    <TimeStamp :timestamp="tx.blockTimestamp" />
+  </CompactCard>
 
   <!-- Batch transfer: multiple recipients -->
-  <div v-else-if="isBatchTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
-    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
-      <ProfileBadge
-        :address="senderAddress"
-        :name="fromIdentity?.name"
-        :profile-url="fromProfileUrl"
-        size="x-small"
-      />
-      <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
-        sent
-        <a
-          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >
-          <span>{{ batchTotalAmount }}</span>
-          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-          <span>{{ tokenDisplayName }}</span>
-        </a>
-        to
-      </span>
-      <!-- Recipient profile icons (up to 5) -->
-      <div class="flex items-center -space-x-1">
-        <a
-          v-for="r in batchPreviewRecipients"
-          :key="r.address"
-          :href="`https://universaleverything.io/${r.address}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="block"
-        >
-          <lukso-profile
-            :profile-url="getBatchProfileUrl(r.address)"
-            :profile-address="r.address"
-            has-identicon
-            size="x-small"
-          ></lukso-profile>
-        </a>
-        <span v-if="batchHasMore" class="text-xs text-neutral-400 dark:text-neutral-500 ml-1.5">+{{ batchCount - 5 }}</span>
-      </div>
-      <TimeStamp :timestamp="tx.blockTimestamp" />
-    </div>
-    <div
-      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
-    >
-      <svg
-        class="w-4 h-4 transition-transform"
-        :class="{ 'rotate-180': detailsExpanded }"
-        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+  <CompactCard v-else-if="isBatchTransfer" :tx="(tx as any)">
+    <ProfileBadge
+      :address="senderAddress"
+      :name="fromIdentity?.name"
+      :profile-url="fromProfileUrl"
+      size="x-small"
+    />
+    <div class="basis-full h-0 sm:hidden"></div>
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      sent
+      <a
+        :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </div>
-    </div>
-    <!-- Expanded: individual recipients + amounts -->
-    <div v-if="detailsExpanded" class="mt-3 space-y-2">
-      <div
-        v-for="r in batchRecipients"
+        <span>{{ batchTotalAmount }}</span>
+        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+        <span>{{ tokenDisplayName }}</span>
+      </a>
+      to
+    </span>
+    <!-- Recipient profile icons (up to 5) -->
+    <div class="flex flex-nowrap items-center -space-x-1">
+      <a
+        v-for="r in batchPreviewRecipients"
         :key="r.address"
-        class="flex items-center gap-2 text-sm"
+        :href="`https://universaleverything.io/${r.address}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="block"
       >
-        <span class="text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
-          {{ r.amount }}
-          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-3.5 h-3.5 rounded-full inline-block mx-0.5 align-text-bottom" :alt="tokenDisplayName" />
-          {{ tokenDisplayName }} →
-        </span>
-        <ProfileBadge
-          :address="r.address"
-          :name="getIdentity(r.address)?.name"
+        <lukso-profile
+          :profile-url="getBatchProfileUrl(r.address)"
+          :profile-address="r.address"
+          has-identicon
           size="x-small"
-        />
-      </div>
-      <div class="border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-2">
-        <TxDetails :tx="(tx as any)" />
-      </div>
+        ></lukso-profile>
+      </a>
+      <span v-if="batchHasMore" class="text-xs text-neutral-400 dark:text-neutral-500 ml-1.5">+{{ batchCount - 5 }}</span>
     </div>
-  </div>
+    <TimeStamp :timestamp="tx.blockTimestamp" />
+
+    <template #details>
+      <!-- Expanded: individual recipients + amounts -->
+      <div class="mt-3 space-y-2">
+        <div
+          v-for="r in batchRecipients"
+          :key="r.address"
+          class="flex items-center gap-2 text-sm"
+        >
+          <span class="text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
+            {{ r.amount }}
+            <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-3.5 h-3.5 rounded-full inline-block mx-0.5 align-text-bottom" :alt="tokenDisplayName" />
+            {{ tokenDisplayName }} →
+          </span>
+          <ProfileBadge
+            :address="r.address"
+            :name="getIdentity(r.address)?.name"
+            size="x-small"
+          />
+        </div>
+        <div class="border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-2">
+          <TxDetails :tx="(tx as any)" />
+        </div>
+      </div>
+    </template>
+  </CompactCard>
 
   <!-- NFT card: token is NFT type (lsp4TokenType 1/2), or token sent to an NFT/asset -->
   <!-- NFT token transfer (lsp4TokenType 1/2): sent NFT to a profile -->
@@ -163,7 +135,7 @@
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
         sent
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -201,7 +173,7 @@
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 whitespace-nowrap">
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
         {{ transferComment ? 'commented with' : (isLikesTransfer ? 'liked with' : 'sent') }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -224,141 +196,108 @@
   </ExtendedCard>
 
   <!-- Hyperlane Bridge transfer -->
-  <div v-else-if="isBridgeTransfer" class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
-    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
-      <ProfileBadge
-        :address="senderAddress"
-        :name="fromIdentity?.name"
-        :profile-url="fromProfileUrl"
-        size="x-small"
-      />
-      <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-        bridged <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> via
+  <CompactCard v-else-if="isBridgeTransfer" :tx="(tx as any)">
+    <ProfileBadge
+      :address="senderAddress"
+      :name="fromIdentity?.name"
+      :profile-url="fromProfileUrl"
+      size="x-small"
+    />
+    <div class="basis-full h-0 sm:hidden"></div>
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      bridged <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> via
+      <a
+        :href="HYPERLANE_BRIDGE_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+      >Hyperlane Bridge</a>
+      🌉 <span class="font-medium text-neutral-800 dark:text-neutral-200">to Ethereum</span>
+    </span>
+    <TimeStamp :timestamp="tx.blockTimestamp" />
+  </CompactCard>
+
+  <!-- Standard transfer card -->
+  <CompactCard v-else :tx="(tx as any)">
+    <!-- Actor (sender) -->
+    <template v-if="senderIsAsset">
+      <a
+        :href="`https://universaleverything.io/asset/${tx.from}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex flex-nowrap items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
+      >
+        <img v-if="senderIconUrl" :src="senderIconUrl" class="w-6 h-6 rounded-full" :alt="senderAssetName" />
+        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ senderAssetName }}</span>
+      </a>
+    </template>
+    <ProfileBadge
+      v-else
+      :address="senderAddress"
+      :name="fromIdentity?.name"
+      :profile-url="fromProfileUrl"
+      size="x-small"
+    />
+
+    <div class="basis-full h-0 sm:hidden"></div>
+
+    <!-- Action text -->
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      <template v-if="transferType === 'lyx'">
+        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
+      </template>
+      <template v-else-if="transferType === 'lsp7'">
+        Sent
         <a
-          :href="HYPERLANE_BRIDGE_URL"
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-        >Hyperlane Bridge</a>
-        🌉 <span class="font-medium text-neutral-800 dark:text-neutral-200">to Ethereum</span>
-      </span>
-      <TimeStamp :timestamp="tx.blockTimestamp" />
-    </div>
-    <div
-      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
-    >
-      <svg
-        class="w-4 h-4 transition-transform"
-        :class="{ 'rotate-180': detailsExpanded }"
-        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </div>
-    </div>
-    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
-  </div>
-
-  <!-- Standard transfer card -->
-  <div v-else class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4">
-    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
-    <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
-      <!-- Actor (sender) -->
-      <template v-if="senderIsAsset">
+        >
+          <span>{{ tokenAmount }}</span>
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> to
+      </template>
+      <template v-else>
+        Sent
         <a
-          :href="`https://universaleverything.io/asset/${tx.from}`"
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
           rel="noopener noreferrer"
-          class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
         >
-          <img v-if="senderIconUrl" :src="senderIconUrl" class="w-6 h-6 rounded-full" :alt="senderAssetName" />
-          <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ senderAssetName }}</span>
-        </a>
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> to
       </template>
-      <ProfileBadge
-        v-else
-        :address="senderAddress"
-        :name="fromIdentity?.name"
-        :profile-url="fromProfileUrl"
-        size="x-small"
-      />
+    </span>
 
-      <div class="basis-full h-0 sm:hidden"></div>
+    <div class="basis-full h-0 sm:hidden"></div>
 
-      <!-- Action text -->
-      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-        <template v-if="transferType === 'lyx'">
-          Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
-        </template>
-        <template v-else-if="transferType === 'lsp7'">
-          Sent
-          <a
-            :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-          >
-            <span>{{ tokenAmount }}</span>
-            <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-            <span>{{ tokenDisplayName }}</span>
-          </a> to
-        </template>
-        <template v-else>
-          Sent
-          <a
-            :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
-          >
-            <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-            <span>{{ tokenDisplayName }}</span>
-          </a> to
-        </template>
-      </span>
-
-      <div class="basis-full h-0 sm:hidden"></div>
-
-      <!-- Target (receiver) -->
-      <template v-if="receiverIsAsset">
-        <a
-          :href="`https://universaleverything.io/asset/${receiver}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
-        >
-          <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
-          <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
-        </a>
-      </template>
-      <ProfileBadge
-        v-else
-        :address="receiver"
-        :name="toIdentity?.name"
-        :profile-url="toProfileUrl"
-        size="x-small"
-      />
-
-      <!-- Timestamp -->
-      <TimeStamp :timestamp="tx.blockTimestamp" />
-    </div>
-    <!-- Chevron — always top-right -->
-    <div
-      class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all"
-    >
-      <svg
-        class="w-4 h-4 transition-transform"
-        :class="{ 'rotate-180': detailsExpanded }"
-        fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+    <!-- Target (receiver) -->
+    <template v-if="receiverIsAsset">
+      <a
+        :href="`https://universaleverything.io/asset/${receiver}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex flex-nowrap items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </div>
-    </div>
-    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" />
-  </div>
+        <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
+        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
+      </a>
+    </template>
+    <ProfileBadge
+      v-else
+      :address="receiver"
+      :name="toIdentity?.name"
+      :profile-url="toProfileUrl"
+      size="x-small"
+    />
+
+    <!-- Timestamp -->
+    <TimeStamp :timestamp="tx.blockTimestamp" />
+  </CompactCard>
 </template>
 
 <script setup lang="ts">
@@ -367,6 +306,7 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
 import { fetchTokenName } from '../../lib/api'
+import CompactCard from './CompactCard.vue'
 import ExtendedCard from './ExtendedCard.vue'
 import TxDetails from '../shared/TxDetails.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -382,13 +322,6 @@ const props = defineProps<{
 }>()
 
 const { getIdentity } = useAddressResolver()
-const detailsExpanded = ref(false)
-
-function toggleIfBackground(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
-  detailsExpanded.value = !detailsExpanded.value
-}
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
 

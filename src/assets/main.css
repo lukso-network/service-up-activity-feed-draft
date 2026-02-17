@@ -21,4 +21,10 @@
   .skeleton {
     @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
   }
+
+  /* Card content areas: nested flex containers wrap by default on mobile.
+     Uses :where() for zero specificity — override with flex-nowrap when needed. */
+  .card-flow :where(.flex) {
+    flex-wrap: wrap;
+  }
 }

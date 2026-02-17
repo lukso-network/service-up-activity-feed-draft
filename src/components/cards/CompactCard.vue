@@ -1,8 +1,8 @@
 <template>
   <div class="bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 overflow-hidden max-w-full">
-    <div class="flex gap-3 cursor-pointer" @click="toggleIfBackground">
+    <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground">
       <!-- Main content area — wraps freely -->
-      <div class="flex items-center gap-3 min-w-0 flex-wrap flex-1">
+      <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1 card-flow">
         <slot />
       </div>
       <!-- Chevron — always top-right -->
@@ -19,7 +19,11 @@
         </svg>
       </div>
     </div>
-    <TxDetails v-if="expanded && tx" :tx="tx" />
+    <template v-if="expanded && tx">
+      <slot name="details" :tx="tx">
+        <TxDetails :tx="tx" />
+      </slot>
+    </template>
   </div>
 </template>
 
