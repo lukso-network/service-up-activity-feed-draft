@@ -6,20 +6,24 @@
     @touchend="onTouchEnd"
     @wheel="onWheel"
   >
-    <!-- Pull-to-refresh indicator (fixed position, no layout impact) -->
+    <!-- Pull-to-refresh indicator -->
     <div
       v-if="refreshing || pullDistance > 0"
-      class="fixed top-2 left-1/2 -translate-x-1/2 z-50"
+      class="flex justify-center items-center overflow-hidden"
+      :style="{ height: `${refreshing ? 40 : Math.min(pullDistance, 60)}px` }"
     >
-      <div class="bg-neutral-500/60 backdrop-blur rounded-full p-2 shadow-lg">
-        <svg v-if="refreshing" class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <svg v-else class="w-5 h-5 text-white" :style="{ transform: `rotate(${Math.min(pullDistance / 60, 1) * 180}deg)` }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-        </svg>
-      </div>
+      <svg v-if="refreshing" class="animate-spin w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <svg
+        v-else
+        class="w-5 h-5 text-neutral-400"
+        :style="{ transform: `rotate(${Math.min(pullDistance / 60, 1) * 180}deg)`, opacity: Math.min(pullDistance / 20, 1) }"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
     </div>
 
     <!-- New transactions bar -->
