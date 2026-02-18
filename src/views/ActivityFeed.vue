@@ -1,12 +1,34 @@
 <template>
-  <div class="min-h-screen overflow-x-hidden">
-    <!-- Refresh bar -->
+  <div
+    class="min-h-screen overflow-x-hidden"
+    @touchstart="onTouchStart"
+    @touchmove="onTouchMove"
+    @touchend="onTouchEnd"
+    @wheel="onWheel"
+  >
+    <!-- Pull-to-refresh indicator (fixed position, no layout impact) -->
+    <div
+      v-if="refreshing || pullDistance > 0"
+      class="fixed top-2 left-1/2 -translate-x-1/2 z-50"
+    >
+      <div class="bg-neutral-500/60 backdrop-blur rounded-full p-2 shadow-lg">
+        <svg v-if="refreshing" class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <svg v-else class="w-5 h-5 text-white" :style="{ transform: `rotate(${Math.min(pullDistance / 60, 1) * 180}deg)` }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- New transactions bar -->
     <div
       v-if="newTxCount > 0"
-      class="sticky top-0 z-10 px-4 py-2 bg-lukso-pink/10 dark:bg-lukso-pink/20 backdrop-blur-sm border-b border-lukso-pink/20 cursor-pointer text-center"
+      class="sticky top-0 z-10 px-4 py-2 bg-sky-500/10 dark:bg-sky-400/15 backdrop-blur-sm border-b border-sky-500/20 cursor-pointer text-center"
       @click="showNewTransactions"
     >
-      <span class="text-sm font-medium text-lukso-pink">
+      <span class="text-sm font-medium text-sky-600 dark:text-sky-400">
         {{ newTxCount }} new transaction{{ newTxCount > 1 ? 's' : '' }} — tap to show
       </span>
     </div>
@@ -29,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
+import { ref, computed, onMounted, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useActivity } from '../composables/useActivity'
 import { useAddressResolver } from '../composables/useAddressResolver'
@@ -52,9 +74,7 @@ const { queueResolve } = useAddressResolver()
 
 const profile = ref<AddressIdentity>()
 const profileLoading = ref(true)
-const newTxCount = ref(0)
 const lastVisibleCount = ref(0)
-let pollInterval: ReturnType<typeof setInterval> | null = null
 
 const devMode = computed(() => route.query.devmode !== undefined)
 
@@ -80,7 +100,7 @@ function txFilter(tx: Transaction): boolean {
 
 // Pass filter to useActivity so it auto-fetches until enough visible txs
 const filterRef = computed(() => devMode.value ? null : txFilter)
-const { transactions, loading, loadingMore, error, hasMore, load, loadMore, pollNew } = useActivity(chainIdRef, addressRef, filterRef)
+const { transactions, loading, loadingMore, error, hasMore, newTxCount, load, loadMore, showNew, pollNow } = useActivity(chainIdRef, addressRef, filterRef)
 
 const visibleTransactions = computed(() => {
   if (devMode.value) return transactions.value
@@ -88,8 +108,91 @@ const visibleTransactions = computed(() => {
 })
 
 function showNewTransactions() {
-  newTxCount.value = 0
+  showNew()
   lastVisibleCount.value = transactions.value.length
+}
+
+// Pull-to-refresh (touch + desktop scroll)
+const pullDistance = ref(0)
+const refreshing = ref(false)
+let touchStartY = 0
+let isPulling = false
+let overscrollAccum = 0
+let overscrollDecayTimer: ReturnType<typeof setTimeout> | null = null
+let refreshJustFinished = false
+
+async function doRefresh() {
+  if (refreshing.value) return // prevent double-trigger
+  refreshing.value = true
+  pullDistance.value = 0
+  overscrollAccum = 0
+  // Merge queued + fetch new (does NOT replace the list)
+  await pollNow()
+  lastVisibleCount.value = transactions.value.length
+  refreshing.value = false
+  // Block new pull attempts briefly so residual wheel events don't re-show the arrow
+  refreshJustFinished = true
+  setTimeout(() => { refreshJustFinished = false }, 1000)
+}
+
+// Touch events (mobile)
+function onTouchStart(e: TouchEvent) {
+  if (window.scrollY > 5) return
+  touchStartY = e.touches[0].clientY
+  isPulling = true
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!isPulling || refreshing.value) return
+  if (window.scrollY > 5) {
+    isPulling = false
+    pullDistance.value = 0
+    return
+  }
+  const diff = e.touches[0].clientY - touchStartY
+  if (diff > 0) {
+    pullDistance.value = diff * 0.5
+    if (diff > 10) e.preventDefault()
+  }
+}
+
+async function onTouchEnd() {
+  if (!isPulling) return
+  isPulling = false
+  if (pullDistance.value >= 80) {
+    await doRefresh()
+  } else {
+    pullDistance.value = 0
+  }
+}
+
+// Wheel/scroll events (desktop)
+function onWheel(e: WheelEvent) {
+  if (refreshing.value || refreshJustFinished) return
+  if (window.scrollY > 5) { overscrollAccum = 0; pullDistance.value = 0; return }
+  if (e.deltaY >= 0) { overscrollAccum = 0; pullDistance.value = 0; return }
+
+  overscrollAccum += Math.abs(e.deltaY)
+  pullDistance.value = Math.min(overscrollAccum * 0.15, 60)
+
+  if (pullDistance.value >= 60) {
+    overscrollAccum = 0
+    pullDistance.value = 0
+    doRefresh()
+    return
+  }
+
+  // When user stops scrolling, rotate arrow back down then fade out
+  if (overscrollDecayTimer) clearTimeout(overscrollDecayTimer)
+  overscrollDecayTimer = setTimeout(() => {
+    // Animate back: quickly reduce pullDistance to 0
+    const retract = () => {
+      if (pullDistance.value <= 0) { overscrollAccum = 0; return }
+      pullDistance.value = Math.max(0, pullDistance.value - 1.5)
+      requestAnimationFrame(retract)
+    }
+    requestAnimationFrame(retract)
+  }, 150)
 }
 
 async function loadProfile() {
@@ -145,35 +248,15 @@ watch(transactions, (txs) => {
   }
 }, { immediate: true })
 
-async function startPolling() {
-  pollInterval = setInterval(async () => {
-    const prevCount = transactions.value.length
-    await pollNew()
-    const newCount = transactions.value.length - prevCount
-    if (newCount > 0) {
-      newTxCount.value += newCount
-    }
-  }, 15000)
-}
-
 onMounted(async () => {
   await Promise.all([load(), loadProfile()])
   lastVisibleCount.value = transactions.value.length
-  // Polling disabled for now
-  // startPolling()
-})
-
-onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
 })
 
 // Re-load when route changes
 watch([chainIdRef, addressRef], async () => {
-  if (pollInterval) clearInterval(pollInterval)
-  newTxCount.value = 0
   profile.value = undefined
   await Promise.all([load(), loadProfile()])
   lastVisibleCount.value = transactions.value.length
-  startPolling()
 })
 </script>

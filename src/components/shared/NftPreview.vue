@@ -8,15 +8,8 @@
     <!-- NFT image card -->
     <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
       <div class="relative">
-        <img
-          v-if="imageUrl"
-          :src="imageUrl"
-          class="w-[140px] h-[140px] object-cover"
-          :alt="displayName"
-          loading="lazy"
-        />
         <video
-          v-else-if="videoUrl"
+          v-if="videoUrl"
           ref="videoRef"
           :src="videoUrl"
           class="w-[140px] h-[140px] object-cover"
@@ -25,6 +18,13 @@
           loop
           playsinline
           preload="metadata"
+        />
+        <img
+          v-else-if="effectiveImageUrl"
+          :src="effectiveImageUrl"
+          class="w-[140px] h-[140px] object-cover"
+          :alt="displayName"
+          loading="lazy"
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
@@ -70,6 +70,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { fetchTokenIdMetadata, type TokenAsset } from '../../lib/api'
+import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -146,13 +147,46 @@ const imageUrl = computed(() => {
   return pickImage(identity.value?.icons, 120, 140)
 })
 
-// Video fallback: only used when no image is available
-const videoUrl = computed(() => {
-  if (imageUrl.value) return ''
+// Detected media type for identity images (via HEAD request)
+const detectedVideoUrl = ref('')
+const checkedImages = new Set<string>()
+
+// When identity/tokenMeta resolves, check if any "images" are actually videos
+watch([
+  () => identity.value?.images?.length,
+  () => tokenMeta.value?.assets?.length,
+  () => tokenMeta.value?.images?.length,
+], async () => {
+  if (detectedVideoUrl.value) return // Already found
+  // Check tokenMeta assets first (explicit fileType)
   const assets = tokenMeta.value?.assets
-  if (!assets?.length) return ''
-  const video = assets.find(a => a.fileType?.startsWith('video/'))
-  return video?.src || ''
+  if (assets?.length) {
+    const video = assets.find(a => a.fileType?.startsWith('video/'))
+    if (video?.src) {
+      detectedVideoUrl.value = stripQueryParams(video.src)
+      return
+    }
+  }
+  // Then check all images via HEAD
+  const images = [...(tokenMeta.value?.images || []), ...(identity.value?.images || [])]
+  for (const img of images) {
+    const src = (img as any).src
+    if (!src || checkedImages.has(src)) continue
+    checkedImages.add(src)
+    const type = await detectMediaType(src)
+    if (type === 'video') {
+      detectedVideoUrl.value = stripQueryParams(src)
+      return
+    }
+  }
+}, { immediate: true })
+
+const videoUrl = computed(() => detectedVideoUrl.value)
+
+// Only show image if it's not actually a video
+const effectiveImageUrl = computed(() => {
+  if (videoUrl.value) return ''
+  return imageUrl.value
 })
 
 const videoRef = ref<HTMLVideoElement | null>(null)

@@ -34,8 +34,12 @@ export function useActivity(
   const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const hasMore = ref(false)
+  const newTxCount = ref(0)
   const nextToBlock = ref<number | null>(null)
   const latestBlockNumber = ref<number>(0)
+
+  // Queued new transactions (from polling) — shown on user action
+  const queuedTxs = ref<Transaction[]>([])
 
   const isFiltering = computed(() => !!filterFn?.value)
 
@@ -46,11 +50,10 @@ export function useActivity(
 
   /**
    * Keeps fetching pages until at least `targetVisible` items pass the
-   * current filter. Skipped entirely when no filter is active (dev mode)
-   * since every item is visible anyway.
+   * current filter. Skipped entirely when no filter is active (dev mode).
    */
   async function ensureVisible(targetVisible: number) {
-    if (!isFiltering.value) return // dev mode — no filtering, single page is enough
+    if (!isFiltering.value) return
     let fetches = 0
     while (countVisible() < targetVisible && hasMore.value && nextToBlock.value && fetches < MAX_AUTO_FETCHES) {
       fetches++
@@ -77,7 +80,6 @@ export function useActivity(
       if (data.length > 0) {
         latestBlockNumber.value = parseInt(data[0].blockNumber)
       }
-      // Auto-fetch more if too few visible transactions
       await ensureVisible(MIN_VISIBLE_INITIAL)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load activity'
@@ -98,7 +100,6 @@ export function useActivity(
       transactions.value = dedup([...transactions.value, ...sortTxs(data)])
       hasMore.value = res.pagination?.hasMore ?? false
       nextToBlock.value = res.pagination?.nextToBlock ?? null
-      // Keep fetching until we have another batch of visible items
       await ensureVisible(visibleBefore + MIN_VISIBLE_MORE)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load more'
@@ -107,6 +108,7 @@ export function useActivity(
     }
   }
 
+  /** Poll for new transactions — queues them for user to reveal */
   async function pollNew() {
     if (!latestBlockNumber.value) return
     try {
@@ -115,12 +117,38 @@ export function useActivity(
       })
       const data = res.data || []
       if (data.length > 0) {
-        transactions.value = dedup([...data, ...transactions.value])
-        latestBlockNumber.value = parseInt(data[0].blockNumber)
+        const newSorted = sortTxs(data)
+        // Deduplicate against existing
+        const existingHashes = new Set(transactions.value.map(t => t.transactionHash))
+        const unique = newSorted.filter(t => !existingHashes.has(t.transactionHash))
+        if (unique.length > 0) {
+          queuedTxs.value = dedup([...unique, ...queuedTxs.value])
+          // Count only filtered-visible new txs
+          const filter = filterFn?.value
+          newTxCount.value = filter
+            ? queuedTxs.value.filter(filter).length
+            : queuedTxs.value.length
+          latestBlockNumber.value = parseInt(newSorted[0].blockNumber)
+        }
       }
     } catch {
       // Silently fail polling
     }
+  }
+
+  /** Merge queued new transactions into the feed */
+  function showNew() {
+    if (queuedTxs.value.length === 0) return
+    transactions.value = dedup([...sortTxs(queuedTxs.value), ...transactions.value])
+    queuedTxs.value = []
+    newTxCount.value = 0
+  }
+
+  /** Pull-to-refresh: fetch latest and merge, without full reload */
+  async function pollNow() {
+    showNew() // merge any already-queued
+    await pollNew() // fetch latest
+    showNew() // merge what we just fetched
   }
 
   return {
@@ -129,8 +157,10 @@ export function useActivity(
     loadingMore,
     error,
     hasMore,
+    newTxCount,
     load,
     loadMore,
-    pollNew,
+    showNew,
+    pollNow,
   }
 }

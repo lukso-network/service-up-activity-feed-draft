@@ -80,6 +80,16 @@ const emit = defineEmits<{ loadMore: [] }>()
 
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
+let scrollCheckTimer: ReturnType<typeof setTimeout> | null = null
+
+function checkSentinelVisible() {
+  if (!sentinel.value || !props.hasMore || props.loadingMore) return
+  const rect = sentinel.value.getBoundingClientRect()
+  // Trigger when sentinel is within 600px of the viewport bottom
+  if (rect.top < window.innerHeight + 600) {
+    emit('loadMore')
+  }
+}
 
 onMounted(() => {
   observer = new IntersectionObserver(
@@ -88,26 +98,48 @@ onMounted(() => {
         emit('loadMore')
       }
     },
-    { rootMargin: '200px' }
+    { rootMargin: '600px' }
   )
   if (sentinel.value) observer.observe(sentinel.value)
+
+  // Backup: scroll listener for when IntersectionObserver misses
+  window.addEventListener('scroll', onScroll, { passive: true })
 })
+
+function onScroll() {
+  if (scrollCheckTimer) return
+  scrollCheckTimer = setTimeout(() => {
+    scrollCheckTimer = null
+    checkSentinelVisible()
+  }, 150)
+}
 
 watch(sentinel, (el) => {
   if (observer && el) observer.observe(el)
 })
 
-// Re-trigger observer when loading completes — if all fetched items were filtered,
-// the sentinel stays in viewport but observer won't re-fire (only fires on state changes)
+// Re-check after loading completes — sentinel may still be in view
 watch(() => props.loadingMore, (curr, prev) => {
-  if (prev && !curr && sentinel.value && observer) {
-    observer.unobserve(sentinel.value)
-    observer.observe(sentinel.value)
+  if (prev && !curr) {
+    // Re-observe to catch state change
+    if (sentinel.value && observer) {
+      observer.unobserve(sentinel.value)
+      observer.observe(sentinel.value)
+    }
+    // Also do a direct visibility check after a tick (DOM may not have updated yet)
+    setTimeout(checkSentinelVisible, 50)
   }
+})
+
+// Also re-check when transactions change (items may have been filtered out)
+watch(() => props.transactions.length, () => {
+  setTimeout(checkSentinelVisible, 50)
 })
 
 onUnmounted(() => {
   observer?.disconnect()
+  window.removeEventListener('scroll', onScroll)
+  if (scrollCheckTimer) clearTimeout(scrollCheckTimer)
 })
 
 const { getIdentity } = useAddressResolver()

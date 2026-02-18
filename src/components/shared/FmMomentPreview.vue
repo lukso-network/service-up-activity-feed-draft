@@ -8,15 +8,8 @@
     <!-- Moment image card -->
     <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
       <div class="relative">
-        <img
-          v-if="imageUrl"
-          :src="imageUrl"
-          class="w-[140px] h-[140px] object-cover"
-          :alt="momentName"
-          loading="lazy"
-        />
         <video
-          v-else-if="videoUrl"
+          v-if="videoUrl"
           ref="videoRef"
           :src="videoUrl"
           class="w-[140px] h-[140px] object-cover"
@@ -25,6 +18,13 @@
           loop
           playsinline
           preload="metadata"
+        />
+        <img
+          v-else-if="effectiveImageUrl"
+          :src="effectiveImageUrl"
+          class="w-[140px] h-[140px] object-cover"
+          :alt="momentName"
+          loading="lazy"
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
@@ -74,6 +74,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { fetchLikesBalance, fetchTokenName, type TokenAsset } from '../../lib/api'
+import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -135,11 +136,54 @@ const imageUrl = computed(() => {
   return ''
 })
 
-// Video fallback: only used when no image is available
+// Detected media type for identity images (via HEAD request)
+const detectedVideoUrl = ref('')
+const checkedImages = new Set<string>()
+
+// When identity resolves, check if any "images" are actually videos via HEAD
+watch([
+  () => identity.value?.images?.length,
+  () => envioAssets.value.length,
+], async () => {
+  console.log('[FmMoment]', props.address?.slice(0,10), 'watcher fired — images:', identity.value?.images?.length, 'envio:', envioAssets.value.length)
+  if (detectedVideoUrl.value) return // Already found
+  // Check envio assets first (already have fileType)
+  for (const asset of envioAssets.value) {
+    if (asset.fileType?.startsWith('video/') && asset.src) {
+      detectedVideoUrl.value = stripQueryParams(asset.src)
+      return
+    }
+  }
+  // Check identity images via HEAD request
+  const images = identity.value?.images
+  if (!images?.length) return
+  for (const img of images) {
+    const src = (img as any).src
+    if (!src || checkedImages.has(src)) continue
+    checkedImages.add(src)
+    const type = await detectMediaType(src)
+    console.log('[FmMoment]', props.address?.slice(0,10), 'HEAD result:', type, 'for', stripQueryParams(src)?.slice(0,80))
+    if (type === 'video') {
+      detectedVideoUrl.value = stripQueryParams(src)
+      return
+    }
+  }
+}, { immediate: true })
+
+// Video: prefer explicit video assets, then HEAD-detected videos
 const videoUrl = computed(() => {
-  if (imageUrl.value) return ''
+  // Check envio assets first (have explicit fileType)
   const video = envioAssets.value.find(a => a.fileType?.startsWith('video/'))
-  return video?.src || ''
+  if (video?.src) return stripQueryParams(video.src)
+  // HEAD-detected video from identity images
+  if (detectedVideoUrl.value) return detectedVideoUrl.value
+  return ''
+})
+
+// Only show image if it's not actually a video
+const effectiveImageUrl = computed(() => {
+  if (videoUrl.value) return '' // video takes priority
+  return imageUrl.value
 })
 
 const videoRef = ref<HTMLVideoElement | null>(null)

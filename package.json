@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lukso/activity-sdk": "file:../service-auth-simple/packages/activity-sdk",
+    "@lukso/transaction-decoder": "file:../service-auth-simple/packages/transaction-decoder",
     "@lukso/web-components": "^1.178.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

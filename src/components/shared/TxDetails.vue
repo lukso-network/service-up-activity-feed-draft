@@ -73,7 +73,7 @@
       <pre
         v-if="showRaw"
         class="mt-2 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed"
-      >{{ JSON.stringify(tx, null, 2) }}</pre>
+      >{{ safeStringify(tx) }}</pre>
     </div>
   </div>
 </template>
@@ -88,8 +88,14 @@ const props = defineProps<{
 const showRaw = ref(false)
 const copied = ref(false)
 
+function safeStringify(obj: unknown): string {
+  return JSON.stringify(obj, (_key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  , 2)
+}
+
 function copyRawJson() {
-  const text = JSON.stringify(props.tx, null, 2)
+  const text = safeStringify(props.tx)
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(() => {
       copied.value = true
