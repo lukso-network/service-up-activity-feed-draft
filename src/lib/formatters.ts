@@ -57,7 +57,8 @@ export function formatFullTime(timestamp: number): string {
 
 export function formatLYX(value: string): string {
   try {
-    const num = BigInt(value)
+    // Strip trailing 'n' from BigInt-serialized values (e.g. "84000000000000000000n")
+    const num = BigInt(String(value).replace(/n$/, ''))
     if (num === 0n) return ''
 
   const whole = num / 10n ** 18n
