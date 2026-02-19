@@ -233,8 +233,13 @@ function txFilter(tx: Transaction): boolean {
 
 // eslint-disable-next-line prefer-const
 let filteredTransactions = computed(() => {
-  if (devMode.value) return mappedTransactions.value
-  return mappedTransactions.value.filter(txFilter)
+  const txs = devMode.value ? mappedTransactions.value : mappedTransactions.value.filter(txFilter)
+  // Sort by timestamp descending (newest first), then by transactionIndex descending
+  return [...txs].sort((a, b) => {
+    const timeDiff = (b.blockTimestamp || 0) - (a.blockTimestamp || 0)
+    if (timeDiff !== 0) return timeDiff
+    return (b.transactionIndex || 0) - (a.transactionIndex || 0)
+  })
 })
 
 // Keep loading pages until we have enough visible (filtered) transactions
