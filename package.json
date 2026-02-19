@@ -1,7 +1,7 @@
 {
   "name": "up-activity-feed",
   "private": true,
-  "version": "0.4.9",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,8 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@lukso/activity-sdk": "file:../service-auth-simple/packages/activity-sdk",
-    "@lukso/transaction-decoder": "file:../service-auth-simple/packages/transaction-decoder",
+    "@lukso/activity-sdk": "^0.1.0-dev.0a1e0b9",
     "@lukso/web-components": "^1.178.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

@@ -37,64 +37,80 @@
       </span>
     </div>
 
-    <ErrorState v-if="error" :message="error" @retry="load" />
+    <ErrorState v-if="errorMessage" :message="errorMessage" @retry="() => {}" />
 
-    <LoadingSkeleton v-else-if="loading" />
+    <LoadingSkeleton v-else-if="isLoading" />
 
     <TransactionList
       v-else
-      :transactions="visibleTransactions"
+      :transactions="filteredTransactions"
       :chain-id="chainId"
       :profile-address="address"
-      :has-more="hasMore"
+      :has-more="hasMoreToLoad"
       :loading-more="loadingMore"
-      :loading="loading"
-      @load-more="loadMore"
+      :loading="isLoading"
+      @load-more="loadMoreTransactions"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, watchEffect } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
-import { useActivity } from '../composables/useActivity'
-import { useAddressResolver } from '../composables/useAddressResolver'
-import type { AddressIdentity, Transaction } from '../lib/types'
-import { resolveAddresses } from '../lib/api'
+import { useTransactionList } from '@lukso/activity-sdk/vue'
+import type { Transaction } from '../lib/types'
 import { classifyTransaction } from '../lib/formatters'
+import { mapDecoderResultToTransaction } from '../lib/mapDecoderResult'
 import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
+
+const SDK_BASE_URL = 'https://dev.auth-lukso.pages.dev'
 
 const route = useRoute()
 
 const chainId = computed(() => parseInt(route.params.chainId as string) || 42)
 const address = computed(() => ((route.params.address as string) || '').toLowerCase())
 
-const chainIdRef = computed(() => chainId.value)
-const addressRef = computed(() => address.value)
-
-const { queueResolve } = useAddressResolver()
-
-const profile = ref<AddressIdentity>()
-const profileLoading = ref(true)
-const lastVisibleCount = ref(0)
-
 const devMode = computed(() => route.query.devmode !== undefined)
 
-// Title: "UP Activity Feed" or "UP Activity Feed for @user#1234"
-const pageTitle = computed(() => {
-  if (!address.value) return 'UP Activity Feed'
-  const name = profile.value?.name
-  const hash = address.value.slice(2, 6).toUpperCase()
-  if (name) return `UP Activity Feed for @${name}#${hash}`
-  return `UP Activity Feed for ${address.value.slice(0, 6)}...${address.value.slice(-4)}`
+// --- SDK composable ---
+const {
+  visibleTransactions,
+  isLoading,
+  error,
+  hasMoreToLoad,
+  loadingMore,
+  newTransactionCount,
+  loadMoreTransactions,
+  loadQueuedTransactions,
+} = useTransactionList({
+  chainId: chainId.value,
+  address: address.value || undefined,
+  baseUrl: SDK_BASE_URL,
 })
 
-watchEffect(() => {
-  document.title = pageTitle.value
+const newTxCount = computed(() => newTransactionCount.value)
+const errorMessage = computed(() => error.value?.message ?? null)
+
+// --- Map SDK DecoderResult[] → local Transaction[] (with batch child flattening) ---
+const mappedTransactions = computed(() => {
+  const results: Transaction[] = []
+  for (const dr of visibleTransactions.value) {
+    const tx = mapDecoderResultToTransaction(dr)
+    results.push(tx)
+    // Flatten batch children into the main list
+    const drAny = dr as any
+    if (drAny.children && Array.isArray(drAny.children)) {
+      for (const child of drAny.children) {
+        results.push(mapDecoderResultToTransaction(child))
+      }
+    }
+  }
+  return results
 })
 
+// --- Filter (same logic as before) ---
 function txFilter(tx: Transaction): boolean {
   if (tx.status === 0) return false
   const { type } = classifyTransaction(tx)
@@ -102,21 +118,27 @@ function txFilter(tx: Transaction): boolean {
   return true
 }
 
-// Pass filter to useActivity so it auto-fetches until enough visible txs
-const filterRef = computed(() => devMode.value ? null : txFilter)
-const { transactions, loading, loadingMore, error, hasMore, newTxCount, load, loadMore, showNew, pollNow } = useActivity(chainIdRef, addressRef, filterRef)
-
-const visibleTransactions = computed(() => {
-  if (devMode.value) return transactions.value
-  return transactions.value.filter(txFilter)
+const filteredTransactions = computed(() => {
+  if (devMode.value) return mappedTransactions.value
+  return mappedTransactions.value.filter(txFilter)
 })
 
+// --- New transactions bar ---
 function showNewTransactions() {
-  showNew()
-  lastVisibleCount.value = transactions.value.length
+  loadQueuedTransactions()
 }
 
-// Pull-to-refresh (touch + desktop scroll)
+// --- Page title ---
+watchEffect(() => {
+  if (!address.value) {
+    document.title = 'UP Activity Feed'
+  } else {
+    const short = `${address.value.slice(0, 6)}...${address.value.slice(-4)}`
+    document.title = `UP Activity Feed for ${short}`
+  }
+})
+
+// --- Pull-to-refresh (touch + desktop scroll) ---
 const pullDistance = ref(0)
 const refreshing = ref(false)
 let touchStartY = 0
@@ -126,15 +148,13 @@ let overscrollDecayTimer: ReturnType<typeof setTimeout> | null = null
 let refreshJustFinished = false
 
 async function doRefresh() {
-  if (refreshing.value) return // prevent double-trigger
+  if (refreshing.value) return
   refreshing.value = true
   pullDistance.value = 0
   overscrollAccum = 0
-  // Merge queued + fetch new (does NOT replace the list)
-  await pollNow()
-  lastVisibleCount.value = transactions.value.length
+  // Merge any queued transactions from polling
+  loadQueuedTransactions()
   refreshing.value = false
-  // Block new pull attempts briefly so residual wheel events don't re-show the arrow
   refreshJustFinished = true
   setTimeout(() => { refreshJustFinished = false }, 1000)
 }
@@ -186,10 +206,8 @@ function onWheel(e: WheelEvent) {
     return
   }
 
-  // When user stops scrolling, rotate arrow back down then fade out
   if (overscrollDecayTimer) clearTimeout(overscrollDecayTimer)
   overscrollDecayTimer = setTimeout(() => {
-    // Animate back: quickly reduce pullDistance to 0
     const retract = () => {
       if (pullDistance.value <= 0) { overscrollAccum = 0; return }
       pullDistance.value = Math.max(0, pullDistance.value - 1.5)
@@ -198,69 +216,4 @@ function onWheel(e: WheelEvent) {
     requestAnimationFrame(retract)
   }, 150)
 }
-
-async function loadProfile() {
-  if (!address.value) return
-  profileLoading.value = true
-  try {
-    const res = await resolveAddresses(chainId.value, [address.value])
-    const identity = res.addressIdentities[address.value.toLowerCase()]
-    if (identity) {
-      profile.value = identity
-    }
-  } catch {
-    // Profile header is optional
-  } finally {
-    profileLoading.value = false
-  }
-}
-
-// Resolve addresses for visible transactions
-watch(transactions, (txs) => {
-  const addresses = new Set<string>()
-  for (const tx of txs) {
-    if (tx.from) addresses.add(tx.from)
-    if (tx.to) addresses.add(tx.to)
-    // Addresses from args
-    if (tx.args) {
-      for (const arg of tx.args) {
-        if (typeof arg.value === 'string' && (arg.type === 'address' || arg.internalType === 'address')) {
-          addresses.add(arg.value)
-        } else if (Array.isArray(arg.value) && (arg.type === 'address[]' || arg.internalType === 'address[]')) {
-          for (const v of arg.value) {
-            if (typeof v === 'string') addresses.add(v)
-          }
-        }
-      }
-    }
-    // Collect addresses from event logs (Transfer emitter = token contract, etc.)
-    if (tx.logs) {
-      for (const log of tx.logs as any[]) {
-        if (log.address) addresses.add(log.address)
-        if (log.args) {
-          for (const arg of log.args) {
-            if (arg.type === 'address' && typeof arg.value === 'string' && arg.value !== '0x0000000000000000000000000000000000000000') {
-              addresses.add(arg.value)
-            }
-          }
-        }
-      }
-    }
-  }
-  if (addresses.size > 0) {
-    queueResolve(chainId.value, [...addresses])
-  }
-}, { immediate: true })
-
-onMounted(async () => {
-  await Promise.all([load(), loadProfile()])
-  lastVisibleCount.value = transactions.value.length
-})
-
-// Re-load when route changes
-watch([chainIdRef, addressRef], async () => {
-  profile.value = undefined
-  await Promise.all([load(), loadProfile()])
-  lastVisibleCount.value = transactions.value.length
-})
 </script>
