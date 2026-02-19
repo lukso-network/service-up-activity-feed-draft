@@ -49,7 +49,7 @@
       :has-more="hasMoreToLoad"
       :loading-more="loadingMore"
       :loading="isLoading"
-      @load-more="loadMoreTransactions"
+      @load-more="handleLoadMore"
     />
   </div>
 </template>
@@ -82,7 +82,6 @@ const {
   hasMoreToLoad,
   loadingMore,
   newTransactionCount,
-  loadMoreTransactions,
   loadQueuedTransactions,
   loadAdditionalPages,
   initializeData,
@@ -111,14 +110,10 @@ const errorMessage = computed(() => error.value?.message ?? null)
     const initialData = await res.json()
     if (initialData.success) {
       await initializeData(initialData)
-      // Now paginate backwards until we have 50 transactions
-      const TARGET = 50
-      let attempts = 0
-      while (visibleTransactions.value.length < TARGET && attempts < 20) {
-        await loadAdditionalPages(false, true)
-        attempts++
-        if (!hasMoreToLoad.value) break
-      }
+      // Paginate backwards until we have enough VISIBLE (post-filter) transactions.
+      // Many raw txs get filtered (unknown types, aggregates, etc.), so we need
+      // to keep loading until the filtered count meets our target.
+      await loadUntilVisible()
     }
   } catch (e) {
     console.error('[ActivityFeed] initial fetch failed:', e)
@@ -192,20 +187,57 @@ const mappedTransactions = computed(() => {
 })
 
 // --- Filter (same logic as before) ---
-// resultTypes that are only useful in dev mode (internal wrappers, not user actions)
-const DEV_ONLY_RESULT_TYPES = new Set(['wrapper', 'aggregate'])
+// Known card types that we have dedicated UI for
+const KNOWN_TX_TYPES = new Set([
+  'follow', 'unfollow',
+  'token_transfer', 'nft_transfer', 'value_transfer',
+  'token_mint', 'nft_mint',
+  'profile_update', 'token_metadata_update',
+  'permission_change',
+  'create_moment',
+])
 
 function txFilter(tx: Transaction): boolean {
   if (tx.status === 0) return false
-  // Hide SDK internal result types (wrappers, aggregates) unless dev mode
-  if (!devMode.value && tx.resultType && DEV_ONLY_RESULT_TYPES.has(tx.resultType)) return false
-  return true
+  if (devMode.value) return true
+  const { type } = classifyTransaction(tx)
+  return KNOWN_TX_TYPES.has(type)
 }
 
 const filteredTransactions = computed(() => {
   if (devMode.value) return mappedTransactions.value
   return mappedTransactions.value.filter(txFilter)
 })
+
+// Keep loading pages until we have enough visible (filtered) transactions
+const VISIBLE_TARGET = 30
+async function loadUntilVisible() {
+  let attempts = 0
+  while (filteredTransactions.value.length < VISIBLE_TARGET && attempts < 40) {
+    await loadAdditionalPages(false, true)
+    attempts++
+    if (!hasMoreToLoad.value) break
+  }
+}
+
+// Load more when scrolling to end — keep loading until new visible items appear
+let _loadMoreRunning = false
+async function handleLoadMore() {
+  if (_loadMoreRunning) return
+  _loadMoreRunning = true
+  try {
+    const before = filteredTransactions.value.length
+    let attempts = 0
+    // Load pages until at least 5 new visible items appear or no more data
+    while (filteredTransactions.value.length - before < 5 && attempts < 10) {
+      await loadAdditionalPages(false, true)
+      attempts++
+      if (!hasMoreToLoad.value) break
+    }
+  } finally {
+    _loadMoreRunning = false
+  }
+}
 
 // --- New transactions bar ---
 function showNewTransactions() {
