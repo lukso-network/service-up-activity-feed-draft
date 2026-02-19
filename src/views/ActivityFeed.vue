@@ -20,7 +20,7 @@
       <!-- Green checkmark (shows 600ms after refresh completes) -->
       <svg
         v-else-if="refreshDone"
-        class="w-6 h-6 text-emerald-500 transition-opacity duration-300"
+        class="w-6 h-6 text-neutral-400 transition-opacity duration-300"
         :class="refreshFading ? 'opacity-0' : 'opacity-100'"
         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
       >
