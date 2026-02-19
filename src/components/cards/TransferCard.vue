@@ -450,19 +450,6 @@ const senderAddress = computed(() => {
   if (Array.isArray(from)) return (from[0] as string) || props.tx.from
   return getArgString('from') || props.tx.from
 })
-// Queue resolution for all addresses used in this card
-watchEffect(() => {
-  const addrs = [
-    senderAddress.value,
-    receiver.value,
-    tokenContractAddress.value,
-    minterAddress.value,
-    mintTokenContract.value,
-    props.tx.from,
-    props.tx.to,
-  ].filter(Boolean)
-  if (addrs.length) queueResolve(props.chainId, addrs)
-})
 const fromIdentity = computed(() => getIdentity(senderAddress.value))
 
 const senderIsAsset = computed(() => {
@@ -616,6 +603,20 @@ const tokenContractAddress = computed(() => {
 const tokenContractIdentity = computed(() => {
   if (transferType.value === 'lyx') return undefined
   return getIdentity(tokenContractAddress.value)
+})
+
+// Queue resolution for all addresses used in this card
+watchEffect(() => {
+  const addrs = [
+    senderAddress.value,
+    receiver.value,
+    tokenContractAddress.value,
+    minterAddress.value,
+    mintTokenContract.value,
+    props.tx.from,
+    props.tx.to,
+  ].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
 })
 
 const tokenDecimals = computed(() => tokenContractIdentity.value?.decimals ?? 18)

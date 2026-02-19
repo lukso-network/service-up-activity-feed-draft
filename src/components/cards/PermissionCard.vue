@@ -46,10 +46,6 @@ const props = defineProps<{
 
 const { getIdentity, queueResolve } = useAddressResolver()
 
-watchEffect(() => {
-  const addrs = [props.tx.from, props.tx.to, targetAddress.value].filter(Boolean)
-  if (addrs.length) queueResolve(props.chainId, addrs)
-})
 const fromIdentity = computed(() => getIdentity(props.tx.from))
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
@@ -69,6 +65,11 @@ const targetAddress = computed(() => {
     }
   }
   return ''
+})
+
+watchEffect(() => {
+  const addrs = [props.tx.from, props.tx.to, targetAddress.value].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
 })
 
 const targetIdentity = computed(() =>
