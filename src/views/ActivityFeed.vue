@@ -85,6 +85,7 @@ const {
   loadMoreTransactions,
   loadQueuedTransactions,
   loadAdditionalPages,
+  initializeData,
 } = useTransactionList({
   chainId: chainId.value,
   address: address.value || undefined,
@@ -94,14 +95,33 @@ const {
 const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
 
-// Kick off initial historical data load — fetch until we have ~50 transactions
-// SDK polling only watches for NEW txs at the tip, so we need this for history
+// Bootstrap: fetch initial page from API (no fromBlock/toBlock) to seed the SDK,
+// then let loadAdditionalPages paginate backwards until we have ~50 transactions.
+// The SDK's startPolling sends fromBlock=currentBlock which only gets the latest block.
+// We need a clean first request to get archive_height + next_block for pagination.
 ;(async () => {
-  const TARGET = 50
-  let attempts = 0
-  while (visibleTransactions.value.length < TARGET && attempts < 20) {
-    await loadAdditionalPages(false, true)
-    attempts++
+  try {
+    const body: Record<string, any> = { chainId: chainId.value }
+    if (address.value) body.address = address.value
+    const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const initialData = await res.json()
+    if (initialData.success) {
+      await initializeData(initialData)
+      // Now paginate backwards until we have 50 transactions
+      const TARGET = 50
+      let attempts = 0
+      while (visibleTransactions.value.length < TARGET && attempts < 20) {
+        await loadAdditionalPages(false, true)
+        attempts++
+        if (!hasMoreToLoad.value) break
+      }
+    }
+  } catch (e) {
+    console.error('[ActivityFeed] initial fetch failed:', e)
   }
 })()
 
