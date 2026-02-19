@@ -301,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
@@ -321,7 +321,7 @@ const props = defineProps<{
   chainId: number
 }>()
 
-const { getIdentity } = useAddressResolver()
+const { getIdentity, queueResolve } = useAddressResolver()
 const envioMomentName = ref<string | null>(null)
 const envioCollectionName = ref<string | null>(null)
 
@@ -449,6 +449,19 @@ const senderAddress = computed(() => {
   // For batch transfers, args.from is an array — use first element or tx.from
   if (Array.isArray(from)) return (from[0] as string) || props.tx.from
   return getArgString('from') || props.tx.from
+})
+// Queue resolution for all addresses used in this card
+watchEffect(() => {
+  const addrs = [
+    senderAddress.value,
+    receiver.value,
+    tokenContractAddress.value,
+    minterAddress.value,
+    mintTokenContract.value,
+    props.tx.from,
+    props.tx.to,
+  ].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
 })
 const fromIdentity = computed(() => getIdentity(senderAddress.value))
 

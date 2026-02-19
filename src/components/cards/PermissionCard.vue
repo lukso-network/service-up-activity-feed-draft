@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
@@ -44,8 +44,12 @@ const props = defineProps<{
   chainId: number
 }>()
 
-const { getIdentity } = useAddressResolver()
+const { getIdentity, queueResolve } = useAddressResolver()
 
+watchEffect(() => {
+  const addrs = [props.tx.from, props.tx.to, targetAddress.value].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
+})
 const fromIdentity = computed(() => getIdentity(props.tx.from))
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages

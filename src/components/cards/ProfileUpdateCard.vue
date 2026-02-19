@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
@@ -89,7 +89,7 @@ const props = defineProps<{
   chainId: number
 }>()
 
-const { getIdentity } = useAddressResolver()
+const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
 const currentPage = ref(0)
@@ -98,6 +98,10 @@ const groupCount = computed(() => (props.tx as any)._groupCount || 1)
 const groupTxs = computed<Transaction[]>(() => (props.tx as any)._groupTxs || [props.tx])
 const currentTx = computed(() => groupTxs.value[currentPage.value] || props.tx)
 
+watchEffect(() => {
+  const addrs = [props.tx.from, props.tx.to].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
+})
 const toIdentity = computed(() => getIdentity(props.tx.to))
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
