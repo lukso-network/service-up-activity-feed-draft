@@ -8,14 +8,25 @@
   >
     <!-- Pull-to-refresh indicator -->
     <div
-      v-if="refreshing || pullDistance > 0"
+      v-if="refreshing || refreshDone || pullDistance > 0"
       class="flex justify-center items-center overflow-hidden"
-      :style="{ height: `${refreshing ? 40 : Math.min(pullDistance, 60)}px` }"
+      :style="{ height: `${(refreshing || refreshDone) ? 40 : Math.min(pullDistance, 60)}px` }"
     >
+      <!-- Spinning loader -->
       <svg v-if="refreshing" class="animate-spin w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
+      <!-- Green checkmark (shows 600ms after refresh completes) -->
+      <svg
+        v-else-if="refreshDone"
+        class="w-6 h-6 text-emerald-500 transition-opacity duration-300"
+        :class="refreshFading ? 'opacity-0' : 'opacity-100'"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+      <!-- Pull arrow -->
       <svg
         v-else
         class="w-5 h-5 text-neutral-400"
@@ -280,6 +291,8 @@ watchEffect(() => {
 // --- Pull-to-refresh (touch + desktop scroll) ---
 const pullDistance = ref(0)
 const refreshing = ref(false)
+const refreshDone = ref(false)
+const refreshFading = ref(false)
 let touchStartY = 0
 let isPulling = false
 let overscrollAccum = 0
@@ -294,8 +307,18 @@ async function doRefresh() {
   // Merge any queued transactions from polling
   loadQueuedTransactions()
   refreshing.value = false
+  // Show green checkmark for 600ms then fade out
+  refreshDone.value = true
+  refreshFading.value = false
+  setTimeout(() => {
+    refreshFading.value = true
+    setTimeout(() => {
+      refreshDone.value = false
+      refreshFading.value = false
+    }, 300) // fade-out duration
+  }, 600)
   refreshJustFinished = true
-  setTimeout(() => { refreshJustFinished = false }, 1000)
+  setTimeout(() => { refreshJustFinished = false }, 1200)
 }
 
 // Touch events (mobile)
