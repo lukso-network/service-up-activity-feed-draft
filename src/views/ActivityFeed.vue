@@ -46,7 +46,7 @@
       :transactions="filteredTransactions"
       :chain-id="chainId"
       :profile-address="address"
-      :has-more="hasMoreToLoad"
+      :has-more="apiHasMore"
       :loading-more="loadingMore"
       :loading="isLoading"
       @load-more="handleLoadMore"
@@ -85,11 +85,16 @@ const {
   loadQueuedTransactions,
   loadAdditionalPages,
   initializeData,
+  data,
 } = useTransactionList({
   chainId: chainId.value,
   address: address.value || undefined,
   baseUrl: SDK_BASE_URL,
 })
+
+// API pagination hasMore — true if the server has more pages to fetch.
+// hasMoreToLoad only checks the local buffer, which is empty after loadAll.
+const apiHasMore = computed(() => data.value?.pagination?.hasMore !== false)
 
 const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
