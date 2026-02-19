@@ -96,10 +96,13 @@ const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
 
 // Direct API pagination — bypasses SDK throttling issues.
-// Fetches pages from the API and feeds them to the SDK via initializeData.
+// Accumulates all fetched data and re-initializes the SDK with the full dataset.
+// (SDK's initialize() replaces transactions, so we must pass everything each time.)
 let _nextToBlock: number | null = null
 const _paginationHasMore = ref(true)
 const apiHasMore = computed(() => _paginationHasMore.value)
+let _allFetchedData: any[] = []
+
 
 async function fetchPage(): Promise<boolean> {
   const body: Record<string, any> = { chainId: chainId.value }
@@ -111,15 +114,24 @@ async function fetchPage(): Promise<boolean> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  const data = await res.json()
-  if (!data.success) {
+  const respData = await res.json()
+  if (!respData.success) {
     _paginationHasMore.value = false
     return false
   }
-  await initializeData(data)
-  _nextToBlock = data.pagination?.nextToBlock ?? null
-  _paginationHasMore.value = data.pagination?.hasMore !== false && _nextToBlock !== null && _nextToBlock > 0
-  return data.data?.length > 0
+  // Accumulate data from all pages
+  if (respData.data?.length) {
+    _allFetchedData = [..._allFetchedData, ...respData.data]
+  }
+  _nextToBlock = respData.pagination?.nextToBlock ?? null
+  _paginationHasMore.value = respData.pagination?.hasMore !== false && _nextToBlock !== null && _nextToBlock > 0
+  // Re-initialize SDK with ALL accumulated data
+
+  await initializeData({
+    ...respData,
+    data: _allFetchedData,
+  })
+  return respData.data?.length > 0
 }
 
 // Bootstrap: fetch pages until we have enough visible (filtered) transactions
@@ -129,7 +141,6 @@ async function fetchPage(): Promise<boolean> {
     while (attempts < 30 && _paginationHasMore.value) {
       await fetchPage()
       attempts++
-      // Check filtered count after Vue reactivity updates
       await new Promise(r => setTimeout(r, 50))
       if (filteredTransactions!.value.length >= 20) break
     }
