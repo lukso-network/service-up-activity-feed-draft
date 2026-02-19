@@ -83,6 +83,7 @@ const {
   newTransactionCount,
   loadQueuedTransactions,
   initializeData,
+  loadMoreTransactions,
 } = useTransactionList({
   chainId: chainId.value,
   address: address.value || undefined,
@@ -131,6 +132,9 @@ async function fetchPage(): Promise<boolean> {
     ...respData,
     data: _allFetchedData,
   })
+  // SDK's initialize() caps visibleTransactions to _itemsToShow (default 20).
+  // Show ALL buffered items so our filtering sees the full dataset.
+  loadMoreTransactions(true)
   return respData.data?.length > 0
 }
 
