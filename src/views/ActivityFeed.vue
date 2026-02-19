@@ -26,16 +26,9 @@
       </svg>
     </div>
 
-    <!-- New transactions bar -->
-    <div
-      v-if="newTxCount > 0"
-      class="sticky top-0 z-10 px-4 py-2 bg-sky-500/10 dark:bg-sky-400/15 backdrop-blur-sm border-b border-sky-500/20 cursor-pointer text-center"
-      @click="showNewTransactions"
-    >
-      <span class="text-sm font-medium text-sky-600 dark:text-sky-400">
-        {{ newTxCount }} new transaction{{ newTxCount > 1 ? 's' : '' }} — tap to show
-      </span>
-    </div>
+    <!-- New transactions bar — hidden: count is raw (unfiltered) and misleading.
+         Users can pull-to-refresh / scroll up instead. -->
+    <!-- <div v-if="newTxCount > 0" ... /> -->
 
     <ErrorState v-if="errorMessage" :message="errorMessage" @retry="() => {}" />
 
