@@ -1,5 +1,12 @@
 import type { Transaction, TransactionArg, TransactionLog } from './types'
 
+/** Strip trailing 'n' from BigInt-serialized values (e.g. "84000000000000000000n" → "84000000000000000000") */
+function cleanBigIntValue(val: unknown): unknown {
+  if (typeof val === 'string' && /^\d+n$/.test(val)) return val.slice(0, -1)
+  if (Array.isArray(val)) return val.map(cleanBigIntValue)
+  return val
+}
+
 /**
  * Maps a DecoderResult (from @lukso/transaction-decoder) to our local Transaction type.
  * DecoderResult extends Partial<viem.Transaction> + decoder-specific fields,
@@ -14,7 +21,7 @@ export function mapDecoderResultToTransaction(dr: any): Transaction {
         name: arg.name ?? '',
         internalType: arg.internalType ?? arg.type ?? '',
         type: arg.type ?? '',
-        value: arg.value,
+        value: cleanBigIntValue(arg.value),
         indexed: arg.indexed,
       })
     }
@@ -27,7 +34,7 @@ export function mapDecoderResultToTransaction(dr: any): Transaction {
           name,
           internalType: arg.internalType ?? arg.type ?? '',
           type: arg.type ?? '',
-          value: arg.value,
+          value: cleanBigIntValue(arg.value),
           indexed: arg.indexed,
         })
       }
@@ -45,7 +52,7 @@ export function mapDecoderResultToTransaction(dr: any): Transaction {
             name: arg.name ?? '',
             internalType: arg.internalType ?? arg.type ?? '',
             type: arg.type ?? '',
-            value: arg.value,
+            value: cleanBigIntValue(arg.value),
             indexed: arg.indexed,
           })
         }
