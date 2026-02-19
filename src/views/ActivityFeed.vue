@@ -125,30 +125,68 @@ const errorMessage = computed(() => error.value?.message ?? null)
   }
 })()
 
-// --- Map SDK DecoderResult[] → local Transaction[] (with batch child flattening) ---
+// --- Map SDK DecoderResult[] → local Transaction[] (with batch splitting) ---
+//
+// Batch operations need splitting into individual action entries:
+// - followBatch/unfollowBatch: split args.addresses into individual follow/unfollow txs
+// - executeBatch: children (non-wrapper) are separate actions → promote each
+// - transferBatch: handled downstream in TransactionList.vue (LIKES splitting)
+// - Single operations: just show parent, skip all children (they're call-chain wrappers)
+//
+const BATCH_FUNCTIONS = ['followBatch', 'unfollowBatch']
+const EXECUTE_BATCH_FUNCTIONS = ['executeBatch']
+
 const mappedTransactions = computed(() => {
   const results: Transaction[] = []
   for (const dr of visibleTransactions.value) {
-    const tx = mapDecoderResultToTransaction(dr)
-    results.push(tx)
-    // Flatten batch children into the main list — but skip wrappers and
-    // children that are just decoded inner calls of the parent (no own tx hash,
-    // or same action as parent). Only executeBatch/setDataBatch children
-    // that represent genuinely separate on-chain actions should be promoted.
     const drAny = dr as any
-    if (drAny.children && Array.isArray(drAny.children)) {
-      for (const child of drAny.children) {
-        // Skip wrapper layers (executeRelayCall, execute, etc.)
-        if (child.resultType === 'wrapper') continue
-        // Skip children with no transactionHash — they're decoded sub-calls, not real txs
-        if (!child.transactionHash) continue
-        // Skip children that share the parent's txHash — they're internal call traces
-        if (child.transactionHash === drAny.transactionHash) continue
-        // Skip children that duplicate the parent action
-        if (child.functionName === drAny.functionName && child.to === drAny.to) continue
-        results.push(mapDecoderResultToTransaction(child))
+    const fn = drAny.functionName || ''
+
+    // 1. followBatch/unfollowBatch → split args.addresses into individual entries
+    if (BATCH_FUNCTIONS.includes(fn)) {
+      const addressesArg = drAny.args?.find((a: any) => a.name === 'addresses')
+      if (addressesArg?.value && Array.isArray(addressesArg.value)) {
+        const baseTx = mapDecoderResultToTransaction(dr)
+        for (let i = 0; i < addressesArg.value.length; i++) {
+          const addr = String(addressesArg.value[i])
+          results.push({
+            ...baseTx,
+            _virtualKey: `${baseTx.transactionHash}-${fn}-${i}`,
+            functionName: fn === 'unfollowBatch' ? 'unfollow' : 'follow',
+            to: drAny.to, // LSP26 contract
+            args: [{ name: 'addr', internalType: 'address', type: 'address', value: addr }],
+          } as any)
+        }
+        continue
       }
     }
+
+    // 2. executeBatch → promote non-wrapper children as separate actions
+    if (EXECUTE_BATCH_FUNCTIONS.includes(fn)) {
+      const children = drAny.children
+      if (children && Array.isArray(children)) {
+        let promoted = 0
+        for (const child of children) {
+          if (child.resultType === 'wrapper') continue
+          if (!child.transactionHash && !child.functionName) continue
+          const childTx = mapDecoderResultToTransaction(child)
+          // Inherit parent block info if child is missing it
+          if (!childTx.blockTimestamp) {
+            childTx.blockTimestamp = drAny.blockTimestamp || 0
+            childTx.blockNumber = drAny.blockNumber || '0'
+            childTx.blockHash = drAny.blockHash || ''
+            childTx.transactionHash = childTx.transactionHash || drAny.transactionHash || ''
+          }
+          results.push(childTx)
+          promoted++
+        }
+        // If we promoted children, skip the parent batch entry
+        if (promoted > 0) continue
+      }
+    }
+
+    // 3. Default: show the parent transaction, skip children
+    results.push(mapDecoderResultToTransaction(dr))
   }
   return results
 })
