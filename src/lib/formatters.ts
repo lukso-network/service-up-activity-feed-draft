@@ -112,7 +112,9 @@ export function classifyTransaction(tx: Transaction): {
   const fn = tx.functionName?.toLowerCase() ?? ''
   const standard = tx.standard?.toLowerCase() ?? ''
   const input = tx.input?.toLowerCase() ?? '0x'
-  const value = BigInt(tx.value || '0')
+  // Strip trailing 'n' from BigInt-serialized values (e.g. "0n", "41712658n")
+  const rawValue = String(tx.value || '0').replace(/n$/, '')
+  const value = BigInt(rawValue || '0')
 
   // LSP26 Follow/Unfollow — use standard field first, then fallback to function name
   if (standard.includes('lsp26') || fn.includes('follow')) {
