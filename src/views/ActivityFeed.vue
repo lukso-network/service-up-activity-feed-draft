@@ -210,30 +210,34 @@ const filteredTransactions = computed(() => {
 })
 
 // Keep loading pages until we have enough visible (filtered) transactions
-const VISIBLE_TARGET = 30
-async function loadUntilVisible() {
+const VISIBLE_TARGET_INIT = 20
+const VISIBLE_TARGET_MORE = 20
+
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+// Keep loading API pages until we have enough visible (filtered) transactions.
+// loadAdditionalPages has a 1s throttle, so we wait between calls.
+async function loadUntilVisible(target: number = VISIBLE_TARGET_INIT) {
   let attempts = 0
-  while (filteredTransactions.value.length < VISIBLE_TARGET && attempts < 40) {
-    await loadAdditionalPages(false, true)
+  while (filteredTransactions.value.length < target && attempts < 60) {
+    await loadAdditionalPages(true, true) // loadAll=true → up to 1000 internal iterations
     attempts++
-    if (!hasMoreToLoad.value) break
+    // Check if pagination is exhausted
+    await delay(50) // let Vue reactivity update
+    if (filteredTransactions.value.length >= target) break
+    // Wait to bypass the 1s throttle in the SDK
+    await delay(1100)
   }
 }
 
-// Load more when scrolling to end — keep loading until new visible items appear
+// Load more when scrolling to end
 let _loadMoreRunning = false
 async function handleLoadMore() {
   if (_loadMoreRunning) return
   _loadMoreRunning = true
   try {
-    const before = filteredTransactions.value.length
-    let attempts = 0
-    // Load pages until at least 5 new visible items appear or no more data
-    while (filteredTransactions.value.length - before < 5 && attempts < 10) {
-      await loadAdditionalPages(false, true)
-      attempts++
-      if (!hasMoreToLoad.value) break
-    }
+    const target = filteredTransactions.value.length + VISIBLE_TARGET_MORE
+    await loadUntilVisible(target)
   } finally {
     _loadMoreRunning = false
   }
