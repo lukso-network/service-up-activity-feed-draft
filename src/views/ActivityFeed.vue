@@ -142,6 +142,8 @@ const mappedTransactions = computed(() => {
         if (child.resultType === 'wrapper') continue
         // Skip children with no transactionHash — they're decoded sub-calls, not real txs
         if (!child.transactionHash) continue
+        // Skip children that share the parent's txHash — they're internal call traces
+        if (child.transactionHash === drAny.transactionHash) continue
         // Skip children that duplicate the parent action
         if (child.functionName === drAny.functionName && child.to === drAny.to) continue
         results.push(mapDecoderResultToTransaction(child))
