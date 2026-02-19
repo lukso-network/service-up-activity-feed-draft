@@ -126,10 +126,18 @@ const { getIdentity, queueResolve } = useAddressResolver()
 const expanded = ref(false)
 const previewTxs = computed(() => props.transactions.slice(0, 5))
 
-// Queue address resolution for all addresses in the group
+// Queue address resolution for all addresses in the group (actors + targets)
 watchEffect(() => {
-  const addrs = [props.sharedAddress, ...props.transactions.map(tx => tx.from)].filter(Boolean)
-  if (addrs.length) queueResolve(props.chainId, addrs)
+  const addrs = new Set<string>()
+  if (props.sharedAddress) addrs.add(props.sharedAddress)
+  for (const tx of props.transactions) {
+    if (tx.from) addrs.add(tx.from)
+    if (tx.to) addrs.add(tx.to)
+    // Follow target from args
+    const addrArg = tx.args?.find(a => a.name === 'addr')
+    if (addrArg?.value && typeof addrArg.value === 'string') addrs.add(addrArg.value)
+  }
+  if (addrs.size) queueResolve(props.chainId, [...addrs])
 })
 
 const sharedIdentity = computed(() => getIdentity(props.sharedAddress))
