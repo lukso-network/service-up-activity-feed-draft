@@ -131,10 +131,19 @@ const mappedTransactions = computed(() => {
   for (const dr of visibleTransactions.value) {
     const tx = mapDecoderResultToTransaction(dr)
     results.push(tx)
-    // Flatten batch children into the main list
+    // Flatten batch children into the main list — but skip wrappers and
+    // children that are just decoded inner calls of the parent (no own tx hash,
+    // or same action as parent). Only executeBatch/setDataBatch children
+    // that represent genuinely separate on-chain actions should be promoted.
     const drAny = dr as any
     if (drAny.children && Array.isArray(drAny.children)) {
       for (const child of drAny.children) {
+        // Skip wrapper layers (executeRelayCall, execute, etc.)
+        if (child.resultType === 'wrapper') continue
+        // Skip children with no transactionHash — they're decoded sub-calls, not real txs
+        if (!child.transactionHash) continue
+        // Skip children that duplicate the parent action
+        if (child.functionName === drAny.functionName && child.to === drAny.to) continue
         results.push(mapDecoderResultToTransaction(child))
       }
     }
