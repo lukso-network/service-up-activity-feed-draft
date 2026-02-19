@@ -47,7 +47,7 @@
       :chain-id="chainId"
       :profile-address="address"
       :has-more="apiHasMore"
-      :loading-more="loadingMore"
+      :loading-more="loadingMore || _loadMoreRunning"
       :loading="isLoading"
       @load-more="handleLoadMore"
     />
@@ -242,10 +242,11 @@ let filteredTransactions = computed(() => {
 
 // Keep loading pages until we have enough visible (filtered) transactions
 // Load more when scrolling to end — fetch pages directly until 20 new visible items
-let _loadMoreRunning = false
+const _loadMoreRunning = ref(false)
 async function handleLoadMore() {
-  if (_loadMoreRunning || !_paginationHasMore.value) return
-  _loadMoreRunning = true
+  console.log('[handleLoadMore] called, running=', _loadMoreRunning.value, 'hasMore=', _paginationHasMore.value)
+  if (_loadMoreRunning.value || !_paginationHasMore.value) return
+  _loadMoreRunning.value = true
   try {
     const target = filteredTransactions.value.length + 20
     let attempts = 0
@@ -255,7 +256,7 @@ async function handleLoadMore() {
       await new Promise(r => setTimeout(r, 50))
     }
   } finally {
-    _loadMoreRunning = false
+    _loadMoreRunning.value = false
   }
 }
 
