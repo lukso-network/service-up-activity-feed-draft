@@ -65,7 +65,7 @@ import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
 
-const SDK_BASE_URL = 'https://dev.auth-lukso.pages.dev'
+const SDK_BASE_URL = ''
 
 const route = useRoute()
 
@@ -84,6 +84,7 @@ const {
   newTransactionCount,
   loadMoreTransactions,
   loadQueuedTransactions,
+  loadAdditionalPages,
 } = useTransactionList({
   chainId: chainId.value,
   address: address.value || undefined,
@@ -92,6 +93,9 @@ const {
 
 const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
+
+// Kick off initial historical data load (SDK polling only watches for NEW txs)
+loadAdditionalPages(false, true)
 
 // --- Map SDK DecoderResult[] → local Transaction[] (with batch child flattening) ---
 const mappedTransactions = computed(() => {
