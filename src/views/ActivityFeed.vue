@@ -194,8 +194,10 @@ const mappedTransactions = computed(() => {
 // --- Filter (same logic as before) ---
 function txFilter(tx: Transaction): boolean {
   if (tx.status === 0) return false
-  const { type } = classifyTransaction(tx)
-  if (type === 'contract_execution' || type === 'unknown') return false
+  // Don't filter by classification — show all transaction types including
+  // unrecognized ones (they render as GenericCard / RawTransactionCard).
+  // Previously filtered 'unknown' and 'contract_execution' which hid
+  // BurntPix, raw txs, and other valid on-chain activity.
   return true
 }
 
