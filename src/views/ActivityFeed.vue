@@ -79,47 +79,61 @@ const {
   visibleTransactions,
   isLoading,
   error,
-  hasMoreToLoad,
   loadingMore,
   newTransactionCount,
   loadQueuedTransactions,
-  loadAdditionalPages,
   initializeData,
-  data,
 } = useTransactionList({
   chainId: chainId.value,
   address: address.value || undefined,
   baseUrl: SDK_BASE_URL,
 })
 
-// API pagination hasMore — true if the server has more pages to fetch.
-// hasMoreToLoad only checks the local buffer, which is empty after loadAll.
-const apiHasMore = computed(() => data.value?.pagination?.hasMore !== false)
+// API pagination hasMore — tracked by our direct pagination loop
+// Moved: apiHasMore defined after _paginationHasMore ref
 
 const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
 
-// Bootstrap: fetch initial page from API (no fromBlock/toBlock) to seed the SDK,
-// then let loadAdditionalPages paginate backwards until we have ~50 transactions.
-// The SDK's startPolling sends fromBlock=currentBlock which only gets the latest block.
-// We need a clean first request to get archive_height + next_block for pagination.
+// Direct API pagination — bypasses SDK throttling issues.
+// Fetches pages from the API and feeds them to the SDK via initializeData.
+let _nextToBlock: number | null = null
+const _paginationHasMore = ref(true)
+const apiHasMore = computed(() => _paginationHasMore.value)
+
+async function fetchPage(): Promise<boolean> {
+  const body: Record<string, any> = { chainId: chainId.value }
+  if (address.value) body.address = address.value
+  if (_nextToBlock !== null) body.toBlock = _nextToBlock
+
+  const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json()
+  if (!data.success) {
+    _paginationHasMore.value = false
+    return false
+  }
+  await initializeData(data)
+  _nextToBlock = data.pagination?.nextToBlock ?? null
+  _paginationHasMore.value = data.pagination?.hasMore !== false && _nextToBlock !== null && _nextToBlock > 0
+  return data.data?.length > 0
+}
+
+// Bootstrap: fetch pages until we have enough visible (filtered) transactions
 ;(async () => {
   try {
-    const body: Record<string, any> = { chainId: chainId.value }
-    if (address.value) body.address = address.value
-    const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const initialData = await res.json()
-    if (initialData.success) {
-      await initializeData(initialData)
-      // Paginate backwards until we have enough VISIBLE (post-filter) transactions.
-      // Many raw txs get filtered (unknown types, aggregates, etc.), so we need
-      // to keep loading until the filtered count meets our target.
-      await loadUntilVisible()
+    let attempts = 0
+    while (attempts < 30 && _paginationHasMore.value) {
+      await fetchPage()
+      attempts++
+      // Check filtered count after Vue reactivity updates
+      await new Promise(r => setTimeout(r, 50))
+      if (filteredTransactions!.value.length >= 20) break
     }
+    console.log(`[bootstrap] done after ${attempts} pages, filtered=${filteredTransactions!.value.length}, raw=${visibleTransactions.value.length}`)
   } catch (e) {
     console.error('[ActivityFeed] initial fetch failed:', e)
   }
@@ -209,48 +223,26 @@ function txFilter(tx: Transaction): boolean {
   return KNOWN_TX_TYPES.has(type)
 }
 
-const filteredTransactions = computed(() => {
+// eslint-disable-next-line prefer-const
+let filteredTransactions = computed(() => {
   if (devMode.value) return mappedTransactions.value
   return mappedTransactions.value.filter(txFilter)
 })
 
 // Keep loading pages until we have enough visible (filtered) transactions
-const VISIBLE_TARGET_INIT = 20
-const VISIBLE_TARGET_MORE = 20
-
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
-
-// Keep loading API pages until we have enough visible (filtered) transactions.
-// loadAdditionalPages has a 1s throttle, so we wait between calls.
-async function loadUntilVisible(target: number = VISIBLE_TARGET_INIT) {
-  let attempts = 0
-  console.log(`[loadUntilVisible] target=${target}, current filtered=${filteredTransactions.value.length}, raw=${visibleTransactions.value.length}`)
-  while (filteredTransactions.value.length < target && attempts < 60) {
-    const beforeRaw = visibleTransactions.value.length
-    const beforeFiltered = filteredTransactions.value.length
-    await loadAdditionalPages(true, true)
-    await delay(50) // let Vue reactivity update
-    const afterRaw = visibleTransactions.value.length
-    const afterFiltered = filteredTransactions.value.length
-    console.log(`[loadUntilVisible] attempt=${attempts}, raw: ${beforeRaw}→${afterRaw}, filtered: ${beforeFiltered}→${afterFiltered}, hasMore=${hasMoreToLoad.value}`)
-    attempts++
-    if (afterRaw === beforeRaw) {
-      // No new data loaded — need to wait for throttle
-      await delay(1100)
-    }
-    if (filteredTransactions.value.length >= target) break
-  }
-  console.log(`[loadUntilVisible] done. filtered=${filteredTransactions.value.length}`)
-}
-
-// Load more when scrolling to end
+// Load more when scrolling to end — fetch pages directly until 20 new visible items
 let _loadMoreRunning = false
 async function handleLoadMore() {
-  if (_loadMoreRunning) return
+  if (_loadMoreRunning || !_paginationHasMore.value) return
   _loadMoreRunning = true
   try {
-    const target = filteredTransactions.value.length + VISIBLE_TARGET_MORE
-    await loadUntilVisible(target)
+    const target = filteredTransactions.value.length + 20
+    let attempts = 0
+    while (filteredTransactions.value.length < target && _paginationHasMore.value && attempts < 30) {
+      await fetchPage()
+      attempts++
+      await new Promise(r => setTimeout(r, 50))
+    }
   } finally {
     _loadMoreRunning = false
   }
