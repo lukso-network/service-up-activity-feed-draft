@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
@@ -121,10 +121,16 @@ const props = defineProps<{
   isUnfollow: boolean
 }>()
 
-const { getIdentity } = useAddressResolver()
+const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
 const previewTxs = computed(() => props.transactions.slice(0, 5))
+
+// Queue address resolution for all addresses in the group
+watchEffect(() => {
+  const addrs = [props.sharedAddress, ...props.transactions.map(tx => tx.from)].filter(Boolean)
+  if (addrs.length) queueResolve(props.chainId, addrs)
+})
 
 const sharedIdentity = computed(() => getIdentity(props.sharedAddress))
 const sharedProfileUrl = computed(() => {
