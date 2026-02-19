@@ -192,12 +192,13 @@ const mappedTransactions = computed(() => {
 })
 
 // --- Filter (same logic as before) ---
+// resultTypes that are only useful in dev mode (internal wrappers, not user actions)
+const DEV_ONLY_RESULT_TYPES = new Set(['wrapper', 'aggregate'])
+
 function txFilter(tx: Transaction): boolean {
   if (tx.status === 0) return false
-  // Don't filter by classification — show all transaction types including
-  // unrecognized ones (they render as GenericCard / RawTransactionCard).
-  // Previously filtered 'unknown' and 'contract_execution' which hid
-  // BurntPix, raw txs, and other valid on-chain activity.
+  // Hide SDK internal result types (wrappers, aggregates) unless dev mode
+  if (!devMode.value && tx.resultType && DEV_ONLY_RESULT_TYPES.has(tx.resultType)) return false
   return true
 }
 
