@@ -219,15 +219,23 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 // loadAdditionalPages has a 1s throttle, so we wait between calls.
 async function loadUntilVisible(target: number = VISIBLE_TARGET_INIT) {
   let attempts = 0
+  console.log(`[loadUntilVisible] target=${target}, current filtered=${filteredTransactions.value.length}, raw=${visibleTransactions.value.length}`)
   while (filteredTransactions.value.length < target && attempts < 60) {
-    await loadAdditionalPages(true, true) // loadAll=true → up to 1000 internal iterations
-    attempts++
-    // Check if pagination is exhausted
+    const beforeRaw = visibleTransactions.value.length
+    const beforeFiltered = filteredTransactions.value.length
+    await loadAdditionalPages(true, true)
     await delay(50) // let Vue reactivity update
+    const afterRaw = visibleTransactions.value.length
+    const afterFiltered = filteredTransactions.value.length
+    console.log(`[loadUntilVisible] attempt=${attempts}, raw: ${beforeRaw}→${afterRaw}, filtered: ${beforeFiltered}→${afterFiltered}, hasMore=${hasMoreToLoad.value}`)
+    attempts++
+    if (afterRaw === beforeRaw) {
+      // No new data loaded — need to wait for throttle
+      await delay(1100)
+    }
     if (filteredTransactions.value.length >= target) break
-    // Wait to bypass the 1s throttle in the SDK
-    await delay(1100)
   }
+  console.log(`[loadUntilVisible] done. filtered=${filteredTransactions.value.length}`)
 }
 
 // Load more when scrolling to end
