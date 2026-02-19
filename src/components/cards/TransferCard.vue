@@ -628,13 +628,13 @@ const isLikesTransfer = computed(() =>
 
 // ─── Transfer tokenId (for LSP8 NFT transfers) ───
 const transferTokenIdRaw = computed(() => {
-  // From Transfer event log
+  // Prefer function args — log indexed topic ordering can be wrong
+  const argTokenId = props.tx.args?.find(a => a.name === 'tokenId')
+  if (argTokenId?.value) return String(argTokenId.value)
+  // Fallback: Transfer event log
   const transferLog = props.tx.logs?.find((l: any) => l.eventName === 'Transfer')
   const logTokenId = transferLog?.args?.find((a: any) => a.name === 'tokenId')
   if (logTokenId?.value) return String(logTokenId.value)
-  // From function args
-  const argTokenId = props.tx.args?.find(a => a.name === 'tokenId')
-  if (argTokenId?.value) return String(argTokenId.value)
   return ''
 })
 const transferTokenIdDisplay = computed(() => {
