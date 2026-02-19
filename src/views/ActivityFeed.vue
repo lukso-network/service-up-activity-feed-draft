@@ -94,8 +94,16 @@ const {
 const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
 
-// Kick off initial historical data load (SDK polling only watches for NEW txs)
-loadAdditionalPages(false, true)
+// Kick off initial historical data load — fetch until we have ~50 transactions
+// SDK polling only watches for NEW txs at the tip, so we need this for history
+;(async () => {
+  const TARGET = 50
+  let attempts = 0
+  while (visibleTransactions.value.length < TARGET && attempts < 20) {
+    await loadAdditionalPages(false, true)
+    attempts++
+  }
+})()
 
 // --- Map SDK DecoderResult[] → local Transaction[] (with batch child flattening) ---
 const mappedTransactions = computed(() => {
