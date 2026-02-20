@@ -205,7 +205,7 @@
     />
     <div class="basis-full h-0 sm:hidden"></div>
     <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-      bridged <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> via
+      bridged <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> via
       <a
         :href="HYPERLANE_BRIDGE_URL"
         target="_blank"
@@ -244,7 +244,7 @@
     <!-- Action text -->
     <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
       <template v-if="transferType === 'lyx'">
-        Sent <span class="font-medium text-neutral-800 dark:text-neutral-200">{{ formattedAmount }}</span> to
+        Sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
       </template>
       <template v-else-if="transferType === 'lsp7'">
         Sent

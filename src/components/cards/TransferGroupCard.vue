@@ -26,7 +26,8 @@
         </div>
         <div class="basis-full h-0 sm:hidden"></div>
         <span class="text-sm text-neutral-500 dark:text-neutral-400">
-          {{ uniqueParticipants.length }} {{ uniqueParticipants.length === 1 ? 'user' : 'users' }} transferred {{ totalFormatted }} 💎
+          {{ uniqueParticipants.length }} {{ uniqueParticipants.length === 1 ? 'user' : 'users' }} transferred {{ totalFormatted }}
+          <img src="/lyx-icon.png" alt="LYX" class="w-4 h-4 inline-block align-text-bottom" />
         </span>
         <TimeStamp :timestamp="transactions[0].blockTimestamp" />
       </div>
