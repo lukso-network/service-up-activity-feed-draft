@@ -40,8 +40,19 @@
         <!-- Image -->
         <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
           <div class="relative">
+            <video
+              v-if="videoUrl"
+              ref="videoRef"
+              :src="videoUrl"
+              class="w-[140px] h-[140px] object-cover"
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            />
             <img
-              v-if="nftImageUrl"
+              v-else-if="nftImageUrl"
               :src="nftImageUrl"
               :alt="nftDisplayName"
               class="w-[140px] h-[140px] object-cover"
@@ -128,10 +139,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
+import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import { autoDecodeTokenId } from '../../lib/tokenId'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -247,6 +259,53 @@ const nftImageUrl = computed(() => {
     return optimizeImageUrl((sorted.find((i: any) => (i.width || 0) >= 140) || sorted[sorted.length - 1]).src, 280)
   }
   return ''
+})
+
+// ─── Video detection ───
+const detectedVideoUrl = ref('')
+const videoRef = ref<HTMLVideoElement | null>(null)
+const videoUrl = computed(() => detectedVideoUrl.value)
+
+// Check if the "image" is actually a video
+watch([nftImageUrl, collectionIdentity], async () => {
+  if (detectedVideoUrl.value) return
+  // Check resolve API assets for fileType
+  const identity = collectionIdentity.value
+  if (identity) {
+    const assets = (identity as any).images || (identity as any).icons || []
+    const video = assets.find((a: any) => a.fileType?.startsWith('video/'))
+    if (video?.src) {
+      detectedVideoUrl.value = stripQueryParams(video.src)
+      return
+    }
+  }
+  // Check per-token metadata
+  if (isTokenIdUpdate.value && tokenMetadata.value?.images?.length) {
+    const firstSet = Array.isArray(tokenMetadata.value.images[0]) ? tokenMetadata.value.images[0] : [tokenMetadata.value.images[0]]
+    for (const img of firstSet) {
+      if (img?.url) {
+        const url = img.url.startsWith('ipfs://')
+          ? `https://api.universalprofile.cloud/ipfs/${img.url.slice(7)}`
+          : img.url
+        const type = await detectMediaType(url)
+        if (type === 'video') {
+          detectedVideoUrl.value = stripQueryParams(url)
+          return
+        }
+      }
+    }
+  }
+  // HEAD request on the image URL as fallback
+  if (nftImageUrl.value) {
+    const type = await detectMediaType(nftImageUrl.value)
+    if (type === 'video') {
+      detectedVideoUrl.value = stripQueryParams(nftImageUrl.value)
+    }
+  }
+}, { immediate: true })
+
+watch(videoRef, (el) => {
+  if (el) el.play().catch(() => {})
 })
 
 // ─── Display name ───
