@@ -84,7 +84,7 @@ const {
   isLoading,
   error,
   loadingMore,
-  newTransactionCount,
+  newTransactionCount: _newTransactionCount,
   loadQueuedTransactions,
   initializeData,
   loadMoreTransactions,
@@ -97,7 +97,6 @@ const {
 // API pagination hasMore — tracked by our direct pagination loop
 // Moved: apiHasMore defined after _paginationHasMore ref
 
-const newTxCount = computed(() => newTransactionCount.value)
 const errorMessage = computed(() => error.value?.message ?? null)
 
 // Direct API pagination — bypasses SDK throttling issues.
@@ -271,11 +270,6 @@ async function handleLoadMore() {
   } finally {
     _loadMoreRunning.value = false
   }
-}
-
-// --- New transactions bar ---
-function showNewTransactions() {
-  loadQueuedTransactions()
 }
 
 // --- Page title ---
