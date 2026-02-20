@@ -25,6 +25,7 @@
           class="w-[140px] h-[140px] object-cover"
           :alt="displayName"
           loading="lazy"
+          @error="onImageError"
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
@@ -70,7 +71,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { fetchTokenIdMetadata, type TokenAsset } from '../../lib/api'
-import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
+import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -181,7 +182,14 @@ watch([
   }
 }, { immediate: true })
 
-const videoUrl = computed(() => detectedVideoUrl.value)
+const videoUrl = computed(() => {
+  if (detectedVideoUrl.value) return detectedVideoUrl.value
+  // Synchronous URL extension check
+  if (imageUrl.value && detectMediaTypeFromUrl(imageUrl.value) === 'video') {
+    return stripQueryParams(imageUrl.value)
+  }
+  return ''
+})
 
 // Only show image if it's not actually a video
 const effectiveImageUrl = computed(() => {
@@ -208,6 +216,12 @@ watch(videoRef, (el) => {
 onBeforeUnmount(() => {
   observer?.disconnect()
 })
+
+function onImageError() {
+  if (imageUrl.value && !detectedVideoUrl.value) {
+    detectedVideoUrl.value = stripQueryParams(imageUrl.value)
+  }
+}
 
 // Creator from lsp4Creators or owner_id
 const creatorAddress = computed(() => {

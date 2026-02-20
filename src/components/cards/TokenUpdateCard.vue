@@ -57,6 +57,7 @@
               :alt="nftDisplayName"
               class="w-[140px] h-[140px] object-cover"
               loading="lazy"
+              @error="onImageError"
             />
             <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
               <lukso-profile
@@ -143,7 +144,7 @@ import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
+import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import { autoDecodeTokenId } from '../../lib/tokenId'
 import ProfileBadge from '../shared/ProfileBadge.vue'
@@ -264,7 +265,13 @@ const nftImageUrl = computed(() => {
 // ─── Video detection ───
 const detectedVideoUrl = ref('')
 const videoRef = ref<HTMLVideoElement | null>(null)
-const videoUrl = computed(() => detectedVideoUrl.value)
+const videoUrl = computed(() => {
+  if (detectedVideoUrl.value) return detectedVideoUrl.value
+  if (nftImageUrl.value && detectMediaTypeFromUrl(nftImageUrl.value) === 'video') {
+    return stripQueryParams(nftImageUrl.value)
+  }
+  return ''
+})
 
 // Check if the "image" is actually a video
 watch([nftImageUrl, collectionIdentity], async () => {
@@ -307,6 +314,12 @@ watch([nftImageUrl, collectionIdentity], async () => {
 watch(videoRef, (el) => {
   if (el) el.play().catch(() => {})
 })
+
+function onImageError() {
+  if (nftImageUrl.value && !detectedVideoUrl.value) {
+    detectedVideoUrl.value = stripQueryParams(nftImageUrl.value)
+  }
+}
 
 // ─── Display name ───
 const nftDisplayName = computed(() => {

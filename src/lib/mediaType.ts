@@ -18,8 +18,24 @@ export function stripQueryParams(url: string): string {
   }
 }
 
+const VIDEO_EXTENSIONS = /\.(mp4|webm|ogv|mov|avi|mkv)$/i
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg|avif|bmp)$/i
+
 /**
- * Detect media type via HTTP HEAD request.
+ * Detect media type from URL extension alone.
+ */
+export function detectMediaTypeFromUrl(url: string): 'video' | 'image' | 'unknown' {
+  if (!url) return 'unknown'
+  try {
+    const pathname = new URL(url).pathname
+    if (VIDEO_EXTENSIONS.test(pathname)) return 'video'
+    if (IMAGE_EXTENSIONS.test(pathname)) return 'image'
+  } catch { /* ignore */ }
+  return 'unknown'
+}
+
+/**
+ * Detect media type via URL extension first, then HTTP HEAD request fallback.
  * Returns 'video', 'image', or 'unknown'.
  * Results are cached per base URL.
  */
@@ -30,6 +46,13 @@ export async function detectMediaType(url: string): Promise<'video' | 'image' | 
   // Check cache
   const cached = mediaTypeCache.get(baseUrl)
   if (cached) return cached
+
+  // Check URL extension first (no network needed)
+  const fromExt = detectMediaTypeFromUrl(baseUrl)
+  if (fromExt !== 'unknown') {
+    mediaTypeCache.set(baseUrl, fromExt)
+    return fromExt
+  }
 
   // Deduplicate in-flight requests
   const pending = pendingRequests.get(baseUrl)

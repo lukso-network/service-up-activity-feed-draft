@@ -25,6 +25,7 @@
           class="w-[140px] h-[140px] object-cover"
           :alt="momentName"
           loading="lazy"
+          @error="onImageError"
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
@@ -74,7 +75,7 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { fetchLikesBalance, fetchTokenName, type TokenAsset } from '../../lib/api'
-import { detectMediaType, stripQueryParams } from '../../lib/mediaType'
+import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
 
 const props = defineProps<{
@@ -170,13 +171,17 @@ watch([
   }
 }, { immediate: true })
 
-// Video: prefer explicit video assets, then HEAD-detected videos
+// Video: prefer explicit video assets, then URL extension check, then HEAD-detected videos
 const videoUrl = computed(() => {
   // Check envio assets first (have explicit fileType)
   const video = envioAssets.value.find(a => a.fileType?.startsWith('video/'))
   if (video?.src) return stripQueryParams(video.src)
   // HEAD-detected video from identity images
   if (detectedVideoUrl.value) return detectedVideoUrl.value
+  // Synchronous URL extension check on image URL
+  if (imageUrl.value && detectMediaTypeFromUrl(imageUrl.value) === 'video') {
+    return stripQueryParams(imageUrl.value)
+  }
   return ''
 })
 
@@ -205,6 +210,13 @@ watch(videoRef, (el) => {
 onBeforeUnmount(() => {
   observer?.disconnect()
 })
+
+// If image fails to load, try as video
+function onImageError() {
+  if (imageUrl.value && !detectedVideoUrl.value) {
+    detectedVideoUrl.value = stripQueryParams(imageUrl.value)
+  }
+}
 
 // Creator from lsp4Creators or owner_id
 const creatorAddress = computed(() => {
