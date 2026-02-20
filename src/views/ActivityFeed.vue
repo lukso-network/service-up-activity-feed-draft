@@ -69,7 +69,7 @@ import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
 
-const SDK_BASE_URL = ''
+const SDK_BASE_URL = 'https://feed.api.universalprofile.cloud'
 
 const route = useRoute()
 
