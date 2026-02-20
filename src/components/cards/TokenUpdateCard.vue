@@ -12,6 +12,7 @@
         <div class="basis-full h-0 sm:hidden"></div>
         <span class="text-sm text-neutral-500 dark:text-neutral-400">
           {{ actionText }}
+          <span v-if="groupCount > 1" class="text-neutral-400 dark:text-neutral-500">({{ groupCount }}×)</span>
         </span>
         <TimeStamp :timestamp="tx.blockTimestamp" />
       </div>
@@ -84,7 +85,14 @@
       </a>
     </div>
 
-    <TxDetails v-if="detailsExpanded" :tx="(tx as any)" class="mt-3" />
+    <!-- Grouped updates: show individual TxDetails when expanded -->
+    <div v-if="detailsExpanded && groupTxs.length > 1" class="mt-3 space-y-2 border-t border-neutral-100 dark:border-neutral-800 pt-3">
+      <div v-for="(gtx, idx) in groupTxs" :key="gtx.transactionHash" class="text-xs text-neutral-500 dark:text-neutral-400">
+        <span class="font-medium text-neutral-600 dark:text-neutral-300">Update {{ idx + 1 }}</span>
+        <TxDetails :tx="(gtx as any)" class="mt-1" />
+      </div>
+    </div>
+    <TxDetails v-else-if="detailsExpanded" :tx="(tx as any)" class="mt-3" />
   </div>
 </template>
 
@@ -106,6 +114,8 @@ const props = defineProps<{
 
 const { getIdentity, queueResolve } = useAddressResolver()
 const detailsExpanded = ref(false)
+const groupCount = computed(() => (props.tx as any)._groupCount || 1)
+const groupTxs = computed<Transaction[]>(() => (props.tx as any)._groupTxs || [props.tx])
 
 function toggleIfBackground(e: MouseEvent) {
   const target = e.target as HTMLElement

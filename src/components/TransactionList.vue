@@ -361,6 +361,29 @@ const displayItems = computed<DisplayItem[]>(() => {
         items.push({ key: tx.transactionHash, type: 'tx', tx })
       }
       i = j
+    } else if (type === 'token_metadata_update') {
+      // Group consecutive token metadata updates targeting the same contract
+      const tokenTarget = tx.to?.toLowerCase() || ''
+      const run: (Transaction & { _virtualKey?: string })[] = [tx]
+      let j = i + 1
+      while (j < txs.length) {
+        const { type: nextType } = classifyTransaction(txs[j])
+        const nextTarget = txs[j].to?.toLowerCase() || ''
+        if (nextType === 'token_metadata_update' && nextTarget === tokenTarget) {
+          run.push(txs[j])
+          j++
+        } else {
+          break
+        }
+      }
+
+      if (run.length >= 2) {
+        const representative = { ...run[0], _groupCount: run.length, _groupTxs: run } as any
+        items.push({ key: run[0].transactionHash, type: 'tx', tx: representative })
+      } else {
+        items.push({ key: tx.transactionHash, type: 'tx', tx })
+      }
+      i = j
     } else if (type === 'value_transfer') {
       // Group ALL consecutive LYX transfers together
       const run: (Transaction & { _virtualKey?: string })[] = [tx]
