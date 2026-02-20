@@ -19,8 +19,6 @@
           v-else-if="item.type === 'transfer-group'"
           :transactions="item.transactions!"
           :chain-id="chainId"
-          :group-type="item.transferGroupType!"
-          :shared-address="item.sharedAddress!"
         />
         <!-- Regular transaction -->
         <component
@@ -267,25 +265,8 @@ type DisplayItem = {
   tx?: Transaction & { _virtualKey?: string }
   transactions?: Transaction[]
   groupType?: 'same-actor' | 'same-target'
-  transferGroupType?: 'same-sender' | 'same-receiver'
   sharedAddress?: string
   isUnfollow?: boolean
-}
-
-// --- LYX transfer grouping helpers ---
-
-function getTransferSender(tx: Transaction): string {
-  const fromArg = tx.args?.find(a => a.name === 'from')
-  if (fromArg?.value && typeof fromArg.value === 'string') return fromArg.value.toLowerCase()
-  const executed = findLogByEvent(tx.logs, EXECUTED_EVENT)
-  if (executed?.address) return executed.address.toLowerCase()
-  return tx.from.toLowerCase()
-}
-
-function getTransferReceiver(tx: Transaction): string {
-  const toArg = tx.args?.find(a => a.name === 'to')
-  if (toArg?.value && typeof toArg.value === 'string') return toArg.value.toLowerCase()
-  return (tx.to || '').toLowerCase()
 }
 
 const displayItems = computed<DisplayItem[]>(() => {
@@ -380,14 +361,13 @@ const displayItems = computed<DisplayItem[]>(() => {
         items.push({ key: tx.transactionHash, type: 'tx', tx })
       }
       i = j
-    } else if (type === 'value_transfer' || type === 'token_transfer') {
-      // Group consecutive LYX/token transfers by same sender or same receiver
-      const groupTransferType = type
+    } else if (type === 'value_transfer') {
+      // Group ALL consecutive LYX transfers together
       const run: (Transaction & { _virtualKey?: string })[] = [tx]
       let j = i + 1
       while (j < txs.length) {
         const { type: nextType } = classifyTransaction(txs[j])
-        if (nextType === groupTransferType) {
+        if (nextType === 'value_transfer') {
           run.push(txs[j])
           j++
         } else {
@@ -395,43 +375,14 @@ const displayItems = computed<DisplayItem[]>(() => {
         }
       }
 
-      // Greedily split the run into sub-groups by shared sender or receiver
-      let r = 0
-      while (r < run.length) {
-        const sender = getTransferSender(run[r])
-        const receiver = getTransferReceiver(run[r])
-        // Try same-sender sub-group
-        let endS = r + 1
-        while (endS < run.length && getTransferSender(run[endS]) === sender) endS++
-        const senderGroupLen = endS - r
-        // Try same-receiver sub-group
-        let endR = r + 1
-        while (endR < run.length && getTransferReceiver(run[endR]) === receiver) endR++
-        const receiverGroupLen = endR - r
-
-        if (senderGroupLen >= 2 && senderGroupLen >= receiverGroupLen) {
-          items.push({
-            key: `transfer-group-${run[r].transactionHash}`,
-            type: 'transfer-group',
-            transactions: run.slice(r, endS),
-            transferGroupType: 'same-sender',
-            sharedAddress: sender,
-          })
-          r = endS
-        } else if (receiverGroupLen >= 2) {
-          items.push({
-            key: `transfer-group-${run[r].transactionHash}`,
-            type: 'transfer-group',
-            transactions: run.slice(r, endR),
-            transferGroupType: 'same-receiver',
-            sharedAddress: receiver,
-          })
-          r = endR
-        } else {
-          const t = run[r]
-          items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
-          r++
-        }
+      if (run.length >= 2) {
+        items.push({
+          key: `transfer-group-${run[0].transactionHash}`,
+          type: 'transfer-group',
+          transactions: run,
+        })
+      } else {
+        items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
       }
       i = j
     } else {

@@ -55,6 +55,11 @@ export function formatFullTime(timestamp: number): string {
   return `${time} \u00B7 ${day}`
 }
 
+/** Format a BigInt whole part with thousand separators */
+export function formatWhole(n: bigint): string {
+  return Number(n).toLocaleString('en-US')
+}
+
 export function formatLYX(value: string): string {
   try {
     // Strip trailing 'n' from BigInt-serialized values (e.g. "84000000000000000000n")
@@ -65,12 +70,12 @@ export function formatLYX(value: string): string {
   const fraction = num % 10n ** 18n
 
   if (fraction === 0n) {
-    return `${whole} LYX`
+    return `${formatWhole(whole)} LYX`
   }
 
   const fractionStr = fraction.toString().padStart(18, '0').replace(/0+$/, '')
   const displayFraction = fractionStr.slice(0, 4)
-  return `${whole}.${displayFraction} LYX`
+  return `${formatWhole(whole)}.${displayFraction} LYX`
   } catch {
     return value
   }

@@ -304,7 +304,7 @@
 import { computed, ref, watch, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
-import { formatLYX, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
+import { formatLYX, formatWhole, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
 import { fetchTokenName } from '../../lib/api'
 import CompactCard from './CompactCard.vue'
 import ExtendedCard from './ExtendedCard.vue'
@@ -405,14 +405,14 @@ const mintAmount = computed(() => {
       const s = val.toString()
       if (s.length > 12) return `${s[0]}.${s.slice(1, 4)}e${s.length - 1}`
       if (s.length > 3) return Number(val).toLocaleString('en-US')
-      return s
+      return Number(val).toLocaleString('en-US')
     }
     const divisor = 10n ** dec
     const whole = val / divisor
     const frac = val % divisor
-    if (frac === 0n) return whole.toString()
+    if (frac === 0n) return formatWhole(whole)
     const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
-    return `${whole}.${fracStr}`
+    return `${formatWhole(whole)}.${fracStr}`
   } catch {
     return String(amountArg.value)
   }
@@ -734,14 +734,14 @@ const tokenAmount = computed(() => {
       const s = val.toString()
       if (s.length > 12) return `${s[0]}.${s.slice(1, 4)}e${s.length - 1}`
       if (s.length > 3) return Number(val).toLocaleString('en-US')
-      return s
+      return Number(val).toLocaleString('en-US')
     }
     const divisor = 10n ** dec
     const whole = val / divisor
     const frac = val % divisor
-    if (frac === 0n) return whole.toString()
+    if (frac === 0n) return formatWhole(whole)
     const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
-    return `${whole}.${fracStr}`
+    return `${formatWhole(whole)}.${fracStr}`
   } catch {
     return String(rawAmount).length > 30 ? '' : String(rawAmount)
   }
