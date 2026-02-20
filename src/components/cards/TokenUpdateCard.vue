@@ -85,14 +85,45 @@
       </a>
     </div>
 
-    <!-- Grouped updates: show individual TxDetails when expanded -->
-    <div v-if="detailsExpanded && groupTxs.length > 1" class="mt-3 space-y-2 border-t border-neutral-100 dark:border-neutral-800 pt-3">
-      <div v-for="(gtx, idx) in groupTxs" :key="gtx.transactionHash" class="text-xs text-neutral-500 dark:text-neutral-400">
-        <span class="font-medium text-neutral-600 dark:text-neutral-300">Update {{ idx + 1 }}</span>
-        <TxDetails :tx="(gtx as any)" class="mt-1" />
+    <!-- Expanded: tx details with pagination -->
+    <div v-if="detailsExpanded">
+      <!-- Pagination controls (only for groups) -->
+      <div v-if="groupCount > 1" class="flex items-center gap-2 mt-3 mb-2">
+        <button
+          @click="currentPage = Math.max(0, currentPage - 1)"
+          :disabled="currentPage === 0"
+          class="w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <div class="flex items-center gap-1">
+          <button
+            v-for="(_, idx) in groupTxs"
+            :key="idx"
+            @click="currentPage = idx"
+            class="w-6 h-6 flex items-center justify-center rounded text-xs transition-colors"
+            :class="currentPage === idx
+              ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-medium'
+              : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          >
+            {{ idx + 1 }}
+          </button>
+        </div>
+        <button
+          @click="currentPage = Math.min(groupCount - 1, currentPage + 1)"
+          :disabled="currentPage === groupCount - 1"
+          class="w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
       </div>
+
+      <TxDetails :tx="(currentTx as any)" />
     </div>
-    <TxDetails v-else-if="detailsExpanded" :tx="(tx as any)" class="mt-3" />
   </div>
 </template>
 
@@ -114,8 +145,10 @@ const props = defineProps<{
 
 const { getIdentity, queueResolve } = useAddressResolver()
 const detailsExpanded = ref(false)
+const currentPage = ref(0)
 const groupCount = computed(() => (props.tx as any)._groupCount || 1)
 const groupTxs = computed<Transaction[]>(() => (props.tx as any)._groupTxs || [props.tx])
+const currentTx = computed(() => groupTxs.value[currentPage.value] || props.tx)
 
 function toggleIfBackground(e: MouseEvent) {
   const target = e.target as HTMLElement
