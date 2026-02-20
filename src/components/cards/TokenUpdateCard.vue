@@ -12,7 +12,7 @@
         <div class="basis-full h-0 sm:hidden"></div>
         <span class="text-sm text-neutral-500 dark:text-neutral-400">
           {{ actionText }}
-          <span v-if="groupCount > 1" class="text-neutral-400 dark:text-neutral-500">({{ groupCount }}×)</span>
+          <span v-if="groupCount > 1" class="text-neutral-400 dark:text-neutral-500">{{ groupCount }}x</span>
         </span>
         <TimeStamp :timestamp="tx.blockTimestamp" />
       </div>
