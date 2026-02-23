@@ -1,14 +1,14 @@
 <template>
   <div
     class="min-h-screen overflow-x-hidden"
-    @touchstart="onTouchStart"
-    @touchmove="onTouchMove"
-    @touchend="onTouchEnd"
-    @wheel="onWheel"
+    @touchstart="!address && onTouchStart($event)"
+    @touchmove="!address && onTouchMove($event)"
+    @touchend="!address && onTouchEnd()"
+    @wheel="!address && onWheel($event)"
   >
-    <!-- Pull-to-refresh indicator -->
+    <!-- Pull-to-refresh indicator (main feed only, not per-profile) -->
     <div
-      v-if="refreshing || refreshDone || pullDistance > 0"
+      v-if="!address && (refreshing || refreshDone || pullDistance > 0)"
       class="flex justify-center items-center overflow-hidden"
       :style="{ height: `${(refreshing || refreshDone) ? 40 : Math.min(pullDistance, 60)}px` }"
     >
@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTransactionList } from '@lukso/activity-sdk/vue'
 import type { Transaction } from '../lib/types'
@@ -345,6 +345,44 @@ async function onTouchEnd() {
     pullDistance.value = 0
   }
 }
+
+// --- Auto-poll for new transactions (per-profile feeds only) ---
+let _pollTimer: ReturnType<typeof setInterval> | null = null
+if (address.value) {
+  _pollTimer = setInterval(async () => {
+    try {
+      // Fetch the latest page (no toBlock = newest)
+      const body: Record<string, any> = { chainId: chainId.value, address: address.value }
+      const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const respData = await res.json()
+      if (!respData.success || !respData.data?.length) return
+
+      // Find genuinely new transactions not in our accumulated data
+      const existingHashes = new Set(_allFetchedData.map((d: any) => d.transactionHash))
+      const newItems = respData.data.filter((d: any) => !existingHashes.has(d.transactionHash))
+      if (!newItems.length) return
+
+      console.log(`[auto-poll] found ${newItems.length} new transactions`)
+      // Prepend new items and re-initialize
+      _allFetchedData = [...newItems, ..._allFetchedData]
+      await initializeData({
+        ...respData,
+        data: _allFetchedData,
+      })
+      loadMoreTransactions(true)
+    } catch (e) {
+      console.warn('[auto-poll] error:', e)
+    }
+  }, 60_000) // every 60 seconds
+}
+
+onUnmounted(() => {
+  if (_pollTimer) clearInterval(_pollTimer)
+})
 
 // Wheel/scroll events (desktop)
 function onWheel(e: WheelEvent) {
