@@ -6,6 +6,12 @@
     class="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
   >
     <lukso-profile
+      v-if="isEOA"
+      :profile-url="blockieUrl"
+      :size="size"
+    ></lukso-profile>
+    <lukso-profile
+      v-else
       :profile-url="profileUrl || ''"
       :profile-address="address"
       has-identicon
@@ -22,6 +28,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { makeBlockie } from '../../lib/eoa'
 
 const sizeSteps = ['x-small', 'small', 'medium', 'large'] as const
 
@@ -30,7 +37,12 @@ const props = defineProps<{
   name?: string
   profileUrl?: string
   size?: string
+  isEOA?: boolean
 }>()
+
+const blockieUrl = computed(() =>
+  props.isEOA && props.address ? makeBlockie(props.address) : ''
+)
 
 const nextSize = computed(() => {
   const cur = props.size || 'x-small'

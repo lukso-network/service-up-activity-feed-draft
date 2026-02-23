@@ -14,6 +14,12 @@
     <div class="px-4 pb-4">
       <div class="flex items-end gap-3 -mt-8">
         <lukso-profile
+          v-if="profileIsEOA"
+          :profile-url="blockieUrl"
+          size="large"
+        ></lukso-profile>
+        <lukso-profile
+          v-else
           :profile-url="avatarSrc || ''"
           :profile-address="address"
           has-identicon
@@ -53,12 +59,16 @@
 import { computed } from 'vue'
 import type { AddressIdentity } from '../lib/types'
 import { optimizeImageUrl } from '../lib/formatters'
+import { isEOA, makeBlockie } from '../lib/eoa'
 
 const props = defineProps<{
   profile: AddressIdentity | undefined
   address: string
   loading: boolean
 }>()
+
+const profileIsEOA = computed(() => isEOA(props.profile))
+const blockieUrl = computed(() => profileIsEOA.value ? makeBlockie(props.address) : '')
 
 const avatarSrc = computed(() => {
   const images = props.profile?.profileImages

@@ -9,6 +9,7 @@
             :address="sharedAddress"
             :name="sharedIdentity?.name"
             :profile-url="sharedProfileUrl"
+            :is-e-o-a="sharedIsEOA"
             size="x-small"
           />
           <div class="basis-full h-0 sm:hidden"></div>
@@ -25,6 +26,12 @@
               class="block"
             >
               <lukso-profile
+                v-if="addrIsEOA(getTarget(tx))"
+                :profile-url="getBlockie(getTarget(tx))"
+                size="x-small"
+              ></lukso-profile>
+              <lukso-profile
+                v-else
                 :profile-url="getProfileUrl(getTarget(tx))"
                 :profile-address="getTarget(tx)"
                 has-identicon
@@ -49,6 +56,12 @@
               class="block"
             >
               <lukso-profile
+                v-if="addrIsEOA(getActor(tx))"
+                :profile-url="getBlockie(getActor(tx))"
+                size="x-small"
+              ></lukso-profile>
+              <lukso-profile
+                v-else
                 :profile-url="getProfileUrl(getActor(tx))"
                 :profile-address="getActor(tx)"
                 has-identicon
@@ -68,6 +81,7 @@
             :address="sharedAddress"
             :name="sharedIdentity?.name"
             :profile-url="sharedProfileUrl"
+            :is-e-o-a="sharedIsEOA"
             size="x-small"
           />
         </template>
@@ -103,6 +117,7 @@ import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
+import { isEOA, makeBlockie } from '../../lib/eoa'
 import {
   FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
   LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
@@ -141,12 +156,21 @@ watchEffect(() => {
 })
 
 const sharedIdentity = computed(() => getIdentity(props.sharedAddress))
+const sharedIsEOA = computed(() => isEOA(sharedIdentity.value))
 const sharedProfileUrl = computed(() => {
   const images = sharedIdentity.value?.profileImages
   if (!images?.length) return ''
   const sorted = [...images].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
 })
+
+function addrIsEOA(address: string): boolean {
+  return isEOA(getIdentity(address))
+}
+
+function getBlockie(address: string): string {
+  return makeBlockie(address)
+}
 
 function getProfileUrl(address: string): string {
   const identity = getIdentity(address)

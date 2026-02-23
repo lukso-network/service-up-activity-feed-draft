@@ -14,8 +14,8 @@ export function optimizeImageUrl(url: string, renderedWidth: number): string {
   return `${url}${separator}width=${width}`
 }
 
-export function formatRelativeTime(timestamp: number): string {
-  const now = Math.floor(Date.now() / 1000)
+export function formatRelativeTime(timestamp: number, nowMs: number = Date.now()): string {
+  const now = Math.floor(nowMs / 1000)
   const diff = now - timestamp
 
   if (diff < 60) return 'just now'

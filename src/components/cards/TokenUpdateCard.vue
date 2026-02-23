@@ -7,6 +7,7 @@
           :address="actorAddress"
           :name="actorIdentity?.name"
           :profile-url="actorProfileUrl"
+          :is-e-o-a="actorIsEOA"
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
@@ -61,6 +62,12 @@
             />
             <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
               <lukso-profile
+                v-if="tokenIsEOA"
+                :profile-url="makeBlockie(tokenAddress)"
+                size="x-large"
+              ></lukso-profile>
+              <lukso-profile
+                v-else
                 :profile-address="tokenAddress"
                 has-identicon
                 size="x-large"
@@ -89,6 +96,7 @@
                 :address="creatorAddress"
                 :name="creatorIdentity?.name"
                 :profile-url="creatorProfileUrl"
+                :is-e-o-a="creatorIsEOA"
                 size="x-small"
               />
             </div>
@@ -144,6 +152,7 @@ import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
+import { isEOA as checkIsEOA, makeBlockie } from '../../lib/eoa'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import { autoDecodeTokenId } from '../../lib/tokenId'
@@ -228,6 +237,7 @@ const tokenMetadata = computed(() => {
 
 // ─── Collection identity (from resolve API) ───
 const collectionIdentity = computed(() => getIdentity(tokenAddress.value))
+const tokenIsEOA = computed(() => checkIsEOA(collectionIdentity.value))
 
 // ─── NFT image: per-token from metadata, or collection from resolve API ───
 const nftImageUrl = computed(() => {
@@ -368,6 +378,7 @@ const creatorIdentity = computed(() => {
   return id
 })
 
+const creatorIsEOA = computed(() => checkIsEOA(creatorIdentity.value))
 const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -377,6 +388,7 @@ const creatorProfileUrl = computed(() => {
 
 // ─── Actor ───
 const actorIdentity = computed(() => getIdentity(actorAddress.value))
+const actorIsEOA = computed(() => checkIsEOA(actorIdentity.value))
 const actorProfileUrl = computed(() => {
   const images = actorIdentity.value?.profileImages
   if (!images?.length) return ''

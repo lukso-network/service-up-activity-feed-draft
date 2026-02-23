@@ -7,6 +7,7 @@
           :address="minterAddress"
           :name="minterIdentity?.name"
           :profile-url="minterProfileUrl"
+          :is-e-o-a="minterIsEOA"
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
@@ -35,6 +36,7 @@
       :address="minterAddress"
       :name="minterIdentity?.name"
       :profile-url="minterProfileUrl"
+      :is-e-o-a="minterIsEOA"
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
@@ -60,6 +62,7 @@
       :address="senderAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
+      :is-e-o-a="fromIsEOA"
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
@@ -88,6 +91,12 @@
         class="block"
       >
         <lukso-profile
+          v-if="batchAddrIsEOA(r.address)"
+          :profile-url="makeBlockie(r.address)"
+          size="x-small"
+        ></lukso-profile>
+        <lukso-profile
+          v-else
           :profile-url="getBatchProfileUrl(r.address)"
           :profile-address="r.address"
           has-identicon
@@ -114,6 +123,7 @@
           <ProfileBadge
             :address="r.address"
             :name="getIdentity(r.address)?.name"
+            :is-e-o-a="batchAddrIsEOA(r.address)"
             size="x-small"
           />
         </div>
@@ -132,6 +142,7 @@
         :address="senderAddress"
         :name="fromIdentity?.name"
         :profile-url="fromProfileUrl"
+        :is-e-o-a="fromIsEOA"
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
@@ -154,6 +165,7 @@
         :address="receiver"
         :name="toIdentity?.name"
         :profile-url="toProfileUrl"
+        :is-e-o-a="toIsEOA"
         size="x-small"
       />
       <TimeStamp :timestamp="tx.blockTimestamp" />
@@ -170,6 +182,7 @@
         :address="senderAddress"
         :name="fromIdentity?.name"
         :profile-url="fromProfileUrl"
+        :is-e-o-a="fromIsEOA"
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
@@ -201,6 +214,7 @@
       :address="senderAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
+      :is-e-o-a="fromIsEOA"
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
@@ -236,6 +250,7 @@
       :address="senderAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
+      :is-e-o-a="fromIsEOA"
       size="x-small"
     />
 
@@ -292,6 +307,7 @@
       :address="receiver"
       :name="toIdentity?.name"
       :profile-url="toProfileUrl"
+      :is-e-o-a="toIsEOA"
       size="x-small"
     />
 
@@ -305,6 +321,7 @@ import { computed, ref, watch, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { formatLYX, formatWhole, optimizeImageUrl, classifyTransaction } from '../../lib/formatters'
+import { isEOA as checkIsEOA, makeBlockie } from '../../lib/eoa'
 import { fetchTokenName } from '../../lib/api'
 import CompactCard from './CompactCard.vue'
 import ExtendedCard from './ExtendedCard.vue'
@@ -369,6 +386,7 @@ const minterAddress = computed(() => {
   return props.tx.from
 })
 const minterIdentity = computed(() => minterAddress.value ? getIdentity(minterAddress.value) : undefined)
+const minterIsEOA = computed(() => checkIsEOA(minterIdentity.value))
 const minterProfileUrl = computed(() => {
   const images = minterIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -451,6 +469,7 @@ const senderAddress = computed(() => {
   return getArgString('from') || props.tx.from
 })
 const fromIdentity = computed(() => getIdentity(senderAddress.value))
+const fromIsEOA = computed(() => checkIsEOA(fromIdentity.value))
 
 const senderIsAsset = computed(() => {
   const identity = fromIdentity.value
@@ -545,6 +564,10 @@ const batchRecipients = computed(() => {
 const batchPreviewRecipients = computed(() => batchRecipients.value.slice(0, 5))
 const batchHasMore = computed(() => batchRecipients.value.length > 5)
 
+function batchAddrIsEOA(address: string): boolean {
+  return checkIsEOA(getIdentity(address))
+}
+
 // Get profile image URL for a batch recipient
 function getBatchProfileUrl(address: string): string {
   const identity = getIdentity(address)
@@ -555,6 +578,7 @@ function getBatchProfileUrl(address: string): string {
 }
 
 const toIdentity = computed(() => getIdentity(receiver.value))
+const toIsEOA = computed(() => checkIsEOA(toIdentity.value))
 
 const receiverIsAsset = computed(() => {
   const identity = toIdentity.value

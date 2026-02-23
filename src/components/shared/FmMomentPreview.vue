@@ -29,6 +29,12 @@
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
           <lukso-profile
+            v-if="addressIsEOA"
+            :profile-url="makeBlockie(address)"
+            size="x-large"
+          ></lukso-profile>
+          <lukso-profile
+            v-else
             :profile-address="address"
             has-identicon
             size="x-large"
@@ -55,6 +61,7 @@
             :address="creatorAddress"
             :name="creatorIdentity?.name"
             :profile-url="creatorProfileUrl"
+            :is-e-o-a="creatorIsEOA"
             size="x-small"
           />
         </div>
@@ -74,6 +81,7 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
+import { isEOA as checkIsEOA, makeBlockie } from '../../lib/eoa'
 import { fetchLikesBalance, fetchTokenName, type TokenAsset } from '../../lib/api'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
@@ -86,6 +94,7 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 
 const identity = computed(() => getIdentity(props.address))
+const addressIsEOA = computed(() => checkIsEOA(identity.value))
 
 // Envio data (individual moment name + collection name)
 const envioMomentName = ref<string | null>(null)
@@ -233,6 +242,7 @@ const creatorIdentity = computed(() => {
   return id
 })
 
+const creatorIsEOA = computed(() => checkIsEOA(creatorIdentity.value))
 const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''

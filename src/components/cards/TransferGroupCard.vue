@@ -14,6 +14,12 @@
             class="block"
           >
             <lukso-profile
+              v-if="addrIsEOA(addr)"
+              :profile-url="getBlockie(addr)"
+              size="x-small"
+            ></lukso-profile>
+            <lukso-profile
+              v-else
               :profile-url="getProfileUrl(addr)"
               :profile-address="addr"
               has-identicon
@@ -60,6 +66,7 @@ import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl, formatLYX } from '../../lib/formatters'
+import { isEOA, makeBlockie } from '../../lib/eoa'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TransferCard from './TransferCard.vue'
@@ -124,6 +131,14 @@ watchEffect(() => {
   }
   if (addrs.size) queueResolve(props.chainId, [...addrs])
 })
+
+function addrIsEOA(address: string): boolean {
+  return isEOA(getIdentity(address))
+}
+
+function getBlockie(address: string): string {
+  return makeBlockie(address)
+}
 
 function getProfileUrl(address: string): string {
   const identity = getIdentity(address)
