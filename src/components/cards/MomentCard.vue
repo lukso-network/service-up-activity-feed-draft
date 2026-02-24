@@ -5,6 +5,7 @@
         :address="actorAddress"
         :name="actorIdentity?.name"
         :profile-url="actorProfileUrl"
+        :is-bot="actorIsBot"
         size="x-small"
       />
       <span class="text-sm text-neutral-500 dark:text-neutral-400">created a new moment</span>
@@ -35,6 +36,7 @@ import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
 import { fetchFMomentByBlock } from '../../lib/api'
+import { isBot as checkIsBot } from '../../lib/eoa'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -51,6 +53,7 @@ const { getIdentity, queueResolve } = useAddressResolver()
 
 const actorAddress = computed(() => props.tx.from)
 const actorIdentity = computed(() => getIdentity(actorAddress.value))
+const actorIsBot = computed(() => checkIsBot(actorIdentity.value))
 const actorProfileUrl = computed(() => {
   const images = actorIdentity.value?.profileImages
   if (!images?.length) return ''

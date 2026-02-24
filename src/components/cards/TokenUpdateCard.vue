@@ -8,6 +8,7 @@
           :name="actorIdentity?.name"
           :profile-url="actorProfileUrl"
           :is-e-o-a="actorIsEOA"
+          :is-bot="actorIsBot"
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
@@ -97,6 +98,7 @@
                 :name="creatorIdentity?.name"
                 :profile-url="creatorProfileUrl"
                 :is-e-o-a="creatorIsEOA"
+                :is-bot="creatorIsBot"
                 size="x-small"
               />
             </div>
@@ -152,7 +154,7 @@ import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { isEOA as checkIsEOA, makeBlockie } from '../../lib/eoa'
+import { isEOA as checkIsEOA, isBot as checkIsBot, makeBlockie } from '../../lib/eoa'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import { autoDecodeTokenId } from '../../lib/tokenId'
@@ -379,6 +381,7 @@ const creatorIdentity = computed(() => {
 })
 
 const creatorIsEOA = computed(() => checkIsEOA(creatorIdentity.value))
+const creatorIsBot = computed(() => checkIsBot(creatorIdentity.value))
 const creatorProfileUrl = computed(() => {
   const images = creatorIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -389,6 +392,7 @@ const creatorProfileUrl = computed(() => {
 // ─── Actor ───
 const actorIdentity = computed(() => getIdentity(actorAddress.value))
 const actorIsEOA = computed(() => checkIsEOA(actorIdentity.value))
+const actorIsBot = computed(() => checkIsBot(actorIdentity.value))
 const actorProfileUrl = computed(() => {
   const images = actorIdentity.value?.profileImages
   if (!images?.length) return ''

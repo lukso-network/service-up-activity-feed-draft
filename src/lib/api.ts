@@ -3,6 +3,37 @@ import type { AddressIdentity } from './types'
 const ENVIO_GRAPHQL = 'https://envio.lukso-mainnet.universal.tech/v1/graphql'
 
 /**
+ * Fetch profile tags from Envio for a batch of addresses.
+ * Returns a map of address → tags array.
+ */
+export async function fetchProfileTags(addresses: string[]): Promise<Record<string, string[]>> {
+  if (!addresses.length) return {}
+  try {
+    const fragments = addresses.map((addr, i) =>
+      `p${i}: Profile_by_pk(id: "${addr.toLowerCase()}") { id tags }`
+    ).join('\n')
+    const query = `{ ${fragments} }`
+    const res = await fetch(ENVIO_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) return {}
+    const json = await res.json()
+    const result: Record<string, string[]> = {}
+    for (let i = 0; i < addresses.length; i++) {
+      const profile = json.data?.[`p${i}`]
+      if (profile?.tags?.length) {
+        result[profile.id || addresses[i].toLowerCase()] = profile.tags
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+/**
  * Fetch token name from the Envio indexer.
  * Queries both the Asset table (direct) and Token table (LSP8 collection tokens).
  * Only returns the name — images come from the resolve API.

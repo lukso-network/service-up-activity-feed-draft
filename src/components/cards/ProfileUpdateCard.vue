@@ -7,6 +7,7 @@
           :address="tx.to"
           :name="toIdentity?.name"
           :profile-url="toProfileUrl"
+          :is-bot="toIsBot"
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
@@ -77,6 +78,7 @@ import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
+import { isBot as checkIsBot } from '../../lib/eoa'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TxDetails from '../shared/TxDetails.vue'
@@ -103,6 +105,7 @@ watchEffect(() => {
   if (addrs.length) queueResolve(props.chainId, addrs)
 })
 const toIdentity = computed(() => getIdentity(props.tx.to))
+const toIsBot = computed(() => checkIsBot(toIdentity.value))
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''

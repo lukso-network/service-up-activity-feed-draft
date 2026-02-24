@@ -6,6 +6,7 @@
           :address="tx.from"
           :name="fromIdentity?.name"
           :profile-url="fromProfileUrl"
+          :is-bot="fromIsBot"
           size="x-small"
         />
       </div>
@@ -23,6 +24,7 @@
           :address="targetAddress"
           :name="targetIdentity?.name"
           :profile-url="targetProfileUrl"
+          :is-bot="targetIsBot"
           size="x-small"
         />
       </div>
@@ -35,6 +37,7 @@ import { computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
+import { isBot as checkIsBot } from '../../lib/eoa'
 import ExtendedCard from './ExtendedCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -47,6 +50,7 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 
 const fromIdentity = computed(() => getIdentity(props.tx.from))
+const fromIsBot = computed(() => checkIsBot(fromIdentity.value))
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -75,6 +79,7 @@ watchEffect(() => {
 const targetIdentity = computed(() =>
   targetAddress.value ? getIdentity(targetAddress.value) : undefined
 )
+const targetIsBot = computed(() => checkIsBot(targetIdentity.value))
 const targetProfileUrl = computed(() => {
   const images = targetIdentity.value?.profileImages
   if (!images?.length) return ''

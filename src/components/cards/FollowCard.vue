@@ -5,6 +5,7 @@
       :address="actorAddress"
       :name="fromIdentity?.name"
       :profile-url="fromProfileUrl"
+      :is-bot="fromIsBot"
       size="x-small"
     />
 
@@ -22,6 +23,7 @@
       :address="targetAddress"
       :name="toIdentity?.name"
       :profile-url="toProfileUrl"
+      :is-bot="toIsBot"
       size="x-small"
     />
 
@@ -41,6 +43,7 @@ import {
   findLogByEvent, decodeAddressPairFromData,
   findURByTypeId, getAddressFromURReceivedData
 } from '../../lib/events'
+import { isBot as checkIsBot } from '../../lib/eoa'
 import CompactCard from './CompactCard.vue'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
@@ -112,6 +115,7 @@ watchEffect(() => {
 })
 
 const fromIdentity = computed(() => getIdentity(actorAddress.value))
+const fromIsBot = computed(() => checkIsBot(fromIdentity.value))
 const fromProfileUrl = computed(() => {
   const images = fromIdentity.value?.profileImages
   if (!images?.length) return ''
@@ -121,6 +125,7 @@ const fromProfileUrl = computed(() => {
 })
 
 const toIdentity = computed(() => getIdentity(targetAddress.value))
+const toIsBot = computed(() => checkIsBot(toIdentity.value))
 const toProfileUrl = computed(() => {
   const images = toIdentity.value?.profileImages
   if (!images?.length) return ''

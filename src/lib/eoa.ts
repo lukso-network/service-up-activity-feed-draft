@@ -13,3 +13,13 @@ export function isEOA(identity: AddressIdentity | undefined | null): boolean {
   if (identity.profileImages?.length) return false
   return true
 }
+
+/**
+ * Detect if an address identity belongs to a bot / AI agent.
+ * Checks the tags array for "AI-Agent" (case-insensitive).
+ */
+export function isBot(identity: AddressIdentity | undefined | null): boolean {
+  if (!identity?.tags?.length) return false
+  const normalized = identity.tags.map(tag => tag.toLowerCase().replace(/[\s\-_]+/g, ''))
+  return normalized.includes('aiagent')
+}

@@ -23,12 +23,14 @@
       prefix="@"
       :size="nextSize"
     ></lukso-username>
+    <BotBadge v-if="isBot" />
   </a>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { makeBlockie } from '../../lib/eoa'
+import BotBadge from './BotBadge.vue'
 
 const sizeSteps = ['x-small', 'small', 'medium', 'large'] as const
 
@@ -38,6 +40,7 @@ const props = defineProps<{
   profileUrl?: string
   size?: string
   isEOA?: boolean
+  isBot?: boolean
 }>()
 
 const blockieUrl = computed(() =>

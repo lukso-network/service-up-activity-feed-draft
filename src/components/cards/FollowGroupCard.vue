@@ -10,6 +10,7 @@
             :name="sharedIdentity?.name"
             :profile-url="sharedProfileUrl"
             :is-e-o-a="sharedIsEOA"
+            :is-bot="sharedIsBot"
             size="x-small"
           />
           <div class="basis-full h-0 sm:hidden"></div>
@@ -82,6 +83,7 @@
             :name="sharedIdentity?.name"
             :profile-url="sharedProfileUrl"
             :is-e-o-a="sharedIsEOA"
+            :is-bot="sharedIsBot"
             size="x-small"
           />
         </template>
@@ -117,7 +119,7 @@ import { ref, computed, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
-import { isEOA, makeBlockie } from '../../lib/eoa'
+import { isEOA, isBot, makeBlockie } from '../../lib/eoa'
 import {
   FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
   LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
@@ -157,6 +159,7 @@ watchEffect(() => {
 
 const sharedIdentity = computed(() => getIdentity(props.sharedAddress))
 const sharedIsEOA = computed(() => isEOA(sharedIdentity.value))
+const sharedIsBot = computed(() => isBot(sharedIdentity.value))
 const sharedProfileUrl = computed(() => {
   const images = sharedIdentity.value?.profileImages
   if (!images?.length) return ''
