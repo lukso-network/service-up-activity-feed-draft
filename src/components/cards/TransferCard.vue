@@ -341,7 +341,7 @@ import TimeStamp from '../shared/TimeStamp.vue'
 import NftPreview from '../shared/NftPreview.vue'
 import FmMomentPreview from '../shared/FmMomentPreview.vue'
 import { LIKES_CONTRACT as LIKES_TOKEN, FM_COLLECTION, HYPERLANE_BRIDGE_CONTRACT, HYPERLANE_BRIDGE_URL } from '../../lib/events'
-import { autoDecodeTokenId } from '../../lib/tokenId'
+import { autoDecodeTokenId, decodeTokenId } from '../../lib/tokenId'
 
 const props = defineProps<{
   tx: Transaction
@@ -418,6 +418,10 @@ const mintTokenIdRaw = computed(() => {
 })
 const mintTokenId = computed(() => {
   if (!mintTokenIdRaw.value) return ''
+  const format = mintTokenIdentity.value?.lsp8TokenIdFormat
+  if (format != null) {
+    return decodeTokenId(mintTokenIdRaw.value, format).display
+  }
   return autoDecodeTokenId(mintTokenIdRaw.value).display
 })
 
@@ -680,6 +684,11 @@ const transferTokenIdRaw = computed(() => {
 })
 const transferTokenIdDisplay = computed(() => {
   if (!transferTokenIdRaw.value) return ''
+  // Use the actual LSP8 token ID format from the contract if available
+  const format = tokenContractIdentity.value?.lsp8TokenIdFormat
+  if (format != null) {
+    return decodeTokenId(transferTokenIdRaw.value, format).display
+  }
   return autoDecodeTokenId(transferTokenIdRaw.value).display
 })
 

@@ -157,7 +157,7 @@ import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
 import { isEOA as checkIsEOA, isBot as checkIsBot, makeBlockie } from '../../lib/eoa'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
-import { autoDecodeTokenId } from '../../lib/tokenId'
+import { autoDecodeTokenId, decodeTokenId } from '../../lib/tokenId'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TxDetails from '../shared/TxDetails.vue'
@@ -220,8 +220,11 @@ const rawTokenId = computed(() => {
 
 const decodedTokenId = computed(() => {
   if (!rawTokenId.value) return ''
-  // TODO: when we have LSP8TokenIdFormat from the contract, pass it to decodeTokenId()
-  // For now, auto-detect works for most cases
+  // Use the actual LSP8 token ID format from the contract if available
+  const format = collectionIdentity.value?.lsp8TokenIdFormat
+  if (format != null) {
+    return decodeTokenId(rawTokenId.value, format).display
+  }
   return autoDecodeTokenId(rawTokenId.value).display
 })
 

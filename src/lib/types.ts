@@ -82,6 +82,7 @@ export interface AddressIdentity {
   lsp4TokenName?: string
   lsp4TokenSymbol?: string
   lsp4TokenType?: number
+  lsp8TokenIdFormat?: number
   isLSP7?: boolean
   isCollection?: boolean
   isUnknown?: boolean

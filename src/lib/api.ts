@@ -34,6 +34,37 @@ export async function fetchProfileTags(addresses: string[]): Promise<Record<stri
 }
 
 /**
+ * Fetch lsp8TokenIdFormat from Envio for a batch of asset addresses.
+ * Returns a map of address → lsp8TokenIdFormat (number).
+ */
+export async function fetchAssetTokenIdFormats(addresses: string[]): Promise<Record<string, number>> {
+  if (!addresses.length) return {}
+  try {
+    const fragments = addresses.map((addr, i) =>
+      `a${i}: Asset_by_pk(id: "${addr.toLowerCase()}") { id lsp8TokenIdFormat }`
+    ).join('\n')
+    const query = `{ ${fragments} }`
+    const res = await fetch(ENVIO_GRAPHQL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) return {}
+    const json = await res.json()
+    const result: Record<string, number> = {}
+    for (let i = 0; i < addresses.length; i++) {
+      const asset = json.data?.[`a${i}`]
+      if (asset && asset.lsp8TokenIdFormat != null) {
+        result[asset.id || addresses[i].toLowerCase()] = asset.lsp8TokenIdFormat
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+/**
  * Fetch token name from the Envio indexer.
  * Queries both the Asset table (direct) and Token table (LSP8 collection tokens).
  * Only returns the name — images come from the resolve API.

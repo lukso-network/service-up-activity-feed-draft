@@ -1,7 +1,7 @@
 import { inject, computed, reactive, watch } from 'vue'
 import { ADDRESS_RESOLUTION_KEY, type AddressResolutionContext } from '@lukso/activity-sdk/vue'
 import type { AddressIdentity } from '../lib/types'
-import { fetchProfileTags } from '../lib/api'
+import { fetchProfileTags, fetchAssetTokenIdFormats } from '../lib/api'
 
 /**
  * Thin wrapper around the SDK's address resolution inject.
@@ -16,6 +16,12 @@ const tagsCache = reactive<Record<string, string[]>>({})
 const tagsFetched = new Set<string>()
 let tagsBatchTimer: ReturnType<typeof setTimeout> | null = null
 const tagsBatchQueue = new Set<string>()
+
+// Global lsp8TokenIdFormat cache for asset addresses
+const tokenIdFormatCache = reactive<Record<string, number>>({})
+const tokenIdFormatFetched = new Set<string>()
+let tokenIdFormatBatchTimer: ReturnType<typeof setTimeout> | null = null
+const tokenIdFormatBatchQueue = new Set<string>()
 
 function queueTagsFetch(addresses: string[]) {
   for (const addr of addresses) {
@@ -46,18 +52,51 @@ async function flushTagsBatch() {
   }
 }
 
+function queueTokenIdFormatFetch(addresses: string[]) {
+  for (const addr of addresses) {
+    const lower = addr.toLowerCase()
+    if (!tokenIdFormatFetched.has(lower)) {
+      tokenIdFormatBatchQueue.add(lower)
+    }
+  }
+  if (tokenIdFormatBatchQueue.size > 0 && !tokenIdFormatBatchTimer) {
+    tokenIdFormatBatchTimer = setTimeout(flushTokenIdFormatBatch, 100)
+  }
+}
+
+async function flushTokenIdFormatBatch() {
+  tokenIdFormatBatchTimer = null
+  const batch = [...tokenIdFormatBatchQueue]
+  tokenIdFormatBatchQueue.clear()
+  if (!batch.length) return
+  for (const addr of batch) tokenIdFormatFetched.add(addr)
+  try {
+    const result = await fetchAssetTokenIdFormats(batch)
+    for (const [addr, format] of Object.entries(result)) {
+      tokenIdFormatCache[addr.toLowerCase()] = format
+    }
+  } catch {
+    for (const addr of batch) tokenIdFormatFetched.delete(addr)
+  }
+}
+
 export function useAddressResolver() {
   const ctx = inject<AddressResolutionContext>(ADDRESS_RESOLUTION_KEY as any)
 
   // Watch for new resolved addresses and fetch their tags
   if (ctx) {
     watch(() => Object.keys(ctx.resolvedAddresses.value), (keys) => {
-      const profileAddrs = keys.filter(addr => {
+      const profileAddrs: string[] = []
+      const assetAddrs: string[] = []
+      for (const addr of keys) {
         const info = ctx.resolvedAddresses.value[addr]
-        // Only fetch tags for profiles (not assets/tokens)
-        return info && (info as any).__gqltype === 'Profile'
-      })
+        if (!info) continue
+        const gqlType = (info as any).__gqltype
+        if (gqlType === 'Profile') profileAddrs.push(addr)
+        else if (gqlType === 'Asset') assetAddrs.push(addr)
+      }
       if (profileAddrs.length) queueTagsFetch(profileAddrs)
+      if (assetAddrs.length) queueTokenIdFormatFetch(assetAddrs)
     }, { immediate: true })
   }
 
@@ -71,6 +110,10 @@ export function useAddressResolver() {
     // Enrich with tags from Envio if available
     if (tagsCache[lower]) {
       identity.tags = tagsCache[lower]
+    }
+    // Enrich with lsp8TokenIdFormat from Envio if available
+    if (tokenIdFormatCache[lower] != null) {
+      identity.lsp8TokenIdFormat = tokenIdFormatCache[lower]
     }
     return identity
   }
