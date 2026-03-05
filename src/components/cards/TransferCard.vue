@@ -160,7 +160,7 @@
           class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
         >
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
-          <span>{{ tokenAmount }} {{ tokenDisplayName }}</span>
+          <span>{{ nftDisplayAmount }}{{ tokenDisplayName }}</span>
         </a>
         to
       </span>
@@ -793,6 +793,13 @@ const tokenDisplayName = computed(() => {
   const identity = tokenContractIdentity.value
   return identity?.lsp4TokenSymbol || identity?.lsp4TokenName || identity?.name ||
     (transferType.value === 'lsp8' ? 'NFT' : 'Token')
+})
+
+// For NFT transfers, hide the amount when it's 0 (NFTs use tokenId, not amount)
+const nftDisplayAmount = computed(() => {
+  const amt = tokenAmount.value
+  if (!amt || amt === '0') return ''
+  return `${amt} `
 })
 
 const tokenIconUrl = computed(() => {
