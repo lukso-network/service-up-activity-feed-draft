@@ -4,8 +4,7 @@
 
 @layer base {
   body {
-    background-color: #f8fafb;
-    @apply text-neutral-900 dark:bg-lukso-dark dark:text-neutral-100;
+    @apply bg-[#f8fafb] text-neutral-900 dark:bg-lukso-dark dark:text-neutral-100;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
