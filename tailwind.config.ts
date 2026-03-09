@@ -13,7 +13,7 @@ export default {
           pink: '#FE005B',
           magenta: '#D4004C',
           light: '#FFF0F5',
-          dark: '#1A1A2E',
+          dark: '#1A1A1A',
         },
       },
     },
