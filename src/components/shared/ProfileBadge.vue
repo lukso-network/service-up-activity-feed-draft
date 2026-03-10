@@ -22,6 +22,7 @@
       :address="address"
       prefix="@"
       :size="nextSize"
+      :address-color="isDark ? '#9cb6c9' : ''"
     ></lukso-username>
     <BotBadge v-if="isBot" />
   </a>
@@ -30,7 +31,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { makeBlockie } from '../../lib/eoa'
+import { useDarkMode } from '../../composables/useDarkMode'
 import BotBadge from './BotBadge.vue'
+
+const { isDark } = useDarkMode()
 
 const sizeSteps = ['x-small', 'small', 'medium', 'large'] as const
 

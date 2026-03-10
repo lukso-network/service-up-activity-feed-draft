@@ -72,7 +72,7 @@
       </button>
       <pre
         v-if="showRaw"
-        class="mt-2 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed"
+        class="mt-2 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed"
       >{{ safeStringify(tx) }}</pre>
     </div>
   </div>

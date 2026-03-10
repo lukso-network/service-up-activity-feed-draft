@@ -31,6 +31,7 @@
             :address="address"
             prefix="@"
             size="large"
+            :address-color="isDark ? '#9cb6c9' : ''"
           ></lukso-username>
         </div>
       </div>
@@ -60,6 +61,9 @@ import { computed } from 'vue'
 import type { AddressIdentity } from '../lib/types'
 import { optimizeImageUrl } from '../lib/formatters'
 import { isEOA, makeBlockie } from '../lib/eoa'
+import { useDarkMode } from '../composables/useDarkMode'
+
+const { isDark } = useDarkMode()
 
 const props = defineProps<{
   profile: AddressIdentity | undefined

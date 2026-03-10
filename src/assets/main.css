@@ -18,7 +18,7 @@
 
 @layer components {
   .skeleton {
-    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+    @apply animate-pulse bg-gray-200 dark:bg-neutral-700 rounded;
   }
 
   /* Card content areas: nested flex containers wrap by default on mobile.
