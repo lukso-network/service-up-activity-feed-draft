@@ -231,5 +231,6 @@ function toggleIfBackground(e: MouseEvent) {
   box-shadow: none !important;
   background: transparent !important;
   border-radius: 0 !important;
+  border: none !important;
 }
 </style>
