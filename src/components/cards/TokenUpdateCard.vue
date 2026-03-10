@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white dark:bg-neutral-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-none dark:border dark:border-neutral-700 p-4">
+  <div class="bg-white dark:bg-neutral-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-none dark:border-y dark:border-y-neutral-700 p-4">
     <!-- Header row -->
     <div class="flex gap-2 cursor-pointer" @click="toggleIfBackground($event)">
       <div class="flex items-center gap-2 min-w-0 flex-wrap flex-1">
