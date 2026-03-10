@@ -131,7 +131,7 @@
             size="x-small"
           />
         </div>
-        <div class="border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-2">
+        <div class="border-t border-neutral-100 dark:border-neutral-700 pt-2 mt-2">
           <TxDetails :tx="(tx as any)" />
         </div>
       </div>

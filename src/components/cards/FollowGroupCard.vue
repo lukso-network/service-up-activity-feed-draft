@@ -103,7 +103,7 @@
     </div>
 
     <!-- Expanded: individual follow cards -->
-    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-800 border-t border-neutral-100 dark:border-neutral-800 nested-cards">
+    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-700 border-t border-neutral-100 dark:border-neutral-700 nested-cards">
       <FollowCard
         v-for="tx in transactions"
         :key="tx.transactionHash"
