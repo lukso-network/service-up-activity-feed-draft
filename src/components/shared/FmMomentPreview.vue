@@ -6,7 +6,7 @@
     class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
   >
     <!-- Moment image card -->
-    <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden">
+    <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-850 rounded-xl overflow-hidden">
       <div class="relative">
         <video
           v-if="videoUrl"
@@ -41,7 +41,7 @@
           ></lukso-profile>
         </div>
       </div>
-      <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+      <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-850 bg-neutral-50 dark:bg-neutral-800">
         <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(address) }}</span>
       </div>
     </div>

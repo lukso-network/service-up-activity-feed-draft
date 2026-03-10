@@ -50,7 +50,7 @@
     </div>
 
     <!-- Expanded: individual transfer cards -->
-    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-700 border-t border-neutral-100 dark:border-neutral-700 nested-cards">
+    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
       <TransferCard
         v-for="tx in transactions"
         :key="tx.transactionHash"

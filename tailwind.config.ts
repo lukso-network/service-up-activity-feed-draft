@@ -11,7 +11,9 @@ const luksoNeutral = {
   500: '#9cb6c9',  // neutral-70
   600: '#7a9db8',  // neutral-60
   700: '#476a85',  // neutral-40
+  750: '#365063',  // neutral-30
   800: '#1b2832',  // neutral-15
+  850: '#243542',  // neutral-20
   900: '#121b21',  // neutral-10
   950: '#0d1419',  // darker than neutral-10 for deepest bg
 }

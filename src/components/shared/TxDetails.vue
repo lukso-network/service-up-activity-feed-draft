@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-700 text-xs space-y-2 font-mono">
+  <div class="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-850 text-xs space-y-2 font-mono">
     <div class="flex gap-2">
       <span class="text-neutral-400 w-20 flex-shrink-0">Tx Hash</span>
       <a
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Raw JSON toggle -->
-    <div class="pt-2 border-t border-neutral-100 dark:border-neutral-700 font-sans">
+    <div class="pt-2 border-t border-neutral-100 dark:border-neutral-850 font-sans">
       <button
         @click="showRaw = !showRaw"
         class="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
