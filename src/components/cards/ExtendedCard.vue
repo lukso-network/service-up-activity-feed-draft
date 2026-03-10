@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white dark:bg-neutral-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-none dark:border-y dark:border-y-neutral-700 p-4 overflow-hidden max-w-full">
+  <div class="bg-white dark:bg-neutral-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_8px_rgba(255,255,255,0.06)] p-4 overflow-hidden max-w-full">
     <!-- Header: content wraps, chevron stays top-right -->
     <div class="flex gap-2 mb-3 cursor-pointer" @click="toggleIfBackground">
       <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0 card-flow">
