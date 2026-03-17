@@ -114,7 +114,7 @@
         </div>
       </div>
 
-      <!-- TxDetails with left/right arrow navigation -->
+      <!-- Raw transaction data with left/right arrow navigation -->
       <div class="mt-3 border-t border-neutral-100 dark:border-neutral-850 pt-3">
         <div class="flex items-center justify-between mb-2">
           <button
@@ -130,7 +130,7 @@
             </svg>
           </button>
           <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-            {{ currentTxIndex + 1 }} / {{ transactions.length }}
+            Transaction {{ currentTxIndex + 1 }} / {{ transactions.length }}
           </span>
           <button
             @click.stop="currentTxIndex = Math.min(transactions.length - 1, currentTxIndex + 1)"
@@ -145,7 +145,30 @@
             </svg>
           </button>
         </div>
-        <TxDetails :key="currentTxIndex" :tx="(transactions[currentTxIndex] as any)" />
+        <!-- Inline tx summary + raw JSON (no TxDetails component) -->
+        <div class="text-xs space-y-1.5 font-mono">
+          <div class="flex gap-2">
+            <span class="text-neutral-400 w-14 flex-shrink-0">Hash</span>
+            <a
+              :href="`https://explorer.lukso.network/tx/${currentTx.transactionHash}`"
+              target="_blank" rel="noopener noreferrer"
+              class="text-blue-500 hover:text-blue-600 dark:text-blue-400 truncate"
+            >{{ currentTx.transactionHash }}</a>
+          </div>
+          <div v-if="currentTxRecipient" class="flex gap-2">
+            <span class="text-neutral-400 w-14 flex-shrink-0">To</span>
+            <a
+              :href="`https://universaleverything.io/${currentTxRecipient}`"
+              target="_blank" rel="noopener noreferrer"
+              class="text-blue-500 hover:text-blue-600 dark:text-blue-400 truncate"
+            >{{ currentTxRecipient }}</a>
+          </div>
+          <div v-if="currentTxAmount" class="flex gap-2">
+            <span class="text-neutral-400 w-14 flex-shrink-0">{{ isNft ? 'Token' : 'Amount' }}</span>
+            <span class="text-neutral-700 dark:text-neutral-300">{{ currentTxAmount }}</span>
+          </div>
+        </div>
+        <pre class="mt-2 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg text-xs text-neutral-600 dark:text-neutral-400 overflow-x-auto max-h-72 overflow-y-auto font-mono leading-relaxed">{{ safeStringify(currentTx) }}</pre>
       </div>
     </div>
   </div>
@@ -161,7 +184,7 @@ import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import NftPreview from '../shared/NftPreview.vue'
-import TxDetails from '../shared/TxDetails.vue'
+
 
 const props = defineProps<{
   transactions: Transaction[]
@@ -173,6 +196,46 @@ const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
 const currentTxIndex = ref(0)
+
+const currentTx = computed(() => props.transactions[currentTxIndex.value] || props.transactions[0])
+
+const currentTxRecipient = computed(() => {
+  const toArg = currentTx.value.args?.find(a => a.name === 'to')
+  return (toArg?.value && typeof toArg.value === 'string') ? toArg.value : ''
+})
+
+const currentTxAmount = computed(() => {
+  if (isNft.value) {
+    const tokenIdArg = currentTx.value.args?.find(a => a.name === 'tokenId')
+    if (tokenIdArg?.value) {
+      const idStr = String(tokenIdArg.value)
+      try {
+        const n = BigInt(idStr)
+        if (n < 100000n) return `#${n}`
+      } catch { /* */ }
+      return idStr.length > 14 ? `${idStr.slice(0, 6)}…${idStr.slice(-4)}` : idStr
+    }
+    return ''
+  }
+  const amountArg = currentTx.value.args?.find(a => a.name === 'amount')
+  if (amountArg?.value == null) return ''
+  try {
+    const val = BigInt(String(amountArg.value))
+    const dec = BigInt(tokenDecimals.value)
+    const divisor = dec === 0n ? 1n : 10n ** dec
+    const whole = val / divisor
+    const frac = val % divisor
+    if (frac === 0n) return `${Number(whole).toLocaleString('en-US')} ${tokenName.value}`
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+    return `${Number(whole).toLocaleString('en-US')}.${fracStr} ${tokenName.value}`
+  } catch { return '' }
+})
+
+function safeStringify(obj: unknown): string {
+  return JSON.stringify(obj, (_key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  , 2)
+}
 
 // Raw tokenId from first transaction (for NFT preview on main card)
 const firstTokenIdRaw = computed(() => {
