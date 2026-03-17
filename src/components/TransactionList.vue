@@ -420,7 +420,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         }
       }
 
-      if (run.length >= 10) {
+      if (run.length >= 3) {
         items.push({
           key: `token-transfer-group-${run[0].transactionHash}`,
           type: 'token-transfer-group',
