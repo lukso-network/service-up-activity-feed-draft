@@ -1,0 +1,250 @@
+<template>
+  <div class="bg-white dark:bg-neutral-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_8px_rgba(255,255,255,0.06)] p-4 overflow-hidden max-w-full">
+    <!-- Header — clickable to expand -->
+    <div class="flex gap-3 cursor-pointer" @click="toggleIfBackground($event)">
+      <div class="flex items-center gap-3 min-w-0 flex-wrap flex-1">
+        <!-- Sender profile badge -->
+        <ProfileBadge
+          :address="senderAddress"
+          :name="senderIdentity?.name"
+          :profile-url="senderProfileUrl"
+          :is-e-o-a="senderIsEOA"
+          :is-bot="senderIsBot"
+          size="x-small"
+        />
+        <div class="basis-full h-0 sm:hidden"></div>
+
+        <!-- Description -->
+        <span class="text-sm text-neutral-500 dark:text-neutral-400">
+          airdropped
+          <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
+            <img v-if="tokenIconUrl" :src="tokenIconUrl" :alt="tokenName" class="w-4 h-4 rounded-full" />
+            <template v-if="isNft">{{ transactions.length }} {{ tokenName }} NFTs</template>
+            <template v-else>{{ totalFormatted }} {{ tokenName }}</template>
+          </span>
+          to {{ recipientCount }} {{ recipientCount === 1 ? 'recipient' : 'recipients' }}
+        </span>
+
+        <!-- Stacked recipient icons -->
+        <div class="flex items-center -space-x-1.5">
+          <a
+            v-for="addr in previewRecipients"
+            :key="addr"
+            :href="`https://universaleverything.io/${addr}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="block"
+          >
+            <lukso-profile
+              v-if="addrIsEOA(addr)"
+              :profile-url="getBlockie(addr)"
+              size="x-small"
+            ></lukso-profile>
+            <lukso-profile
+              v-else
+              :profile-url="getProfileUrl(addr)"
+              :profile-address="addr"
+              has-identicon
+              size="x-small"
+            ></lukso-profile>
+          </a>
+          <span v-if="uniqueRecipients.length > 5" class="text-xs text-neutral-400 dark:text-neutral-500 ml-6 pl-2">
+            +{{ uniqueRecipients.length - 5 }}
+          </span>
+        </div>
+
+        <TimeStamp :timestamp="transactions[0].blockTimestamp" />
+      </div>
+      <!-- Chevron -->
+      <div class="flex-shrink-0 self-start mt-1 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 transition-all">
+        <svg
+          class="w-4 h-4 transition-transform"
+          :class="{ 'rotate-180': expanded }"
+          fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Expanded: individual transfer cards -->
+    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
+      <TransferCard
+        v-for="tx in transactions"
+        :key="(tx as any)._virtualKey || tx.transactionHash"
+        :tx="tx"
+        :chain-id="chainId"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watchEffect } from 'vue'
+import type { Transaction } from '../../lib/types'
+import { useAddressResolver } from '../../composables/useAddressResolver'
+import { optimizeImageUrl, formatWhole } from '../../lib/formatters'
+import { isEOA, isBot, makeBlockie } from '../../lib/eoa'
+import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
+import ProfileBadge from '../shared/ProfileBadge.vue'
+import TimeStamp from '../shared/TimeStamp.vue'
+import TransferCard from './TransferCard.vue'
+
+const props = defineProps<{
+  transactions: Transaction[]
+  chainId: number
+  tokenContract: string
+}>()
+
+const { getIdentity, queueResolve } = useAddressResolver()
+
+const expanded = ref(false)
+
+// --- Helpers ---
+
+function getSender(tx: Transaction): string {
+  const fromArg = tx.args?.find(a => a.name === 'from')
+  if (fromArg?.value && typeof fromArg.value === 'string') return fromArg.value.toLowerCase()
+  const executed = findLogByEvent(tx.logs, EXECUTED_EVENT)
+  if (executed?.address) return executed.address.toLowerCase()
+  return tx.from.toLowerCase()
+}
+
+function getReceiver(tx: Transaction): string {
+  const toArg = tx.args?.find(a => a.name === 'to')
+  if (toArg?.value && typeof toArg.value === 'string') return toArg.value.toLowerCase()
+  return (tx.to || '').toLowerCase()
+}
+
+// Sender is the shared sender across all grouped transactions (use the first)
+const senderAddress = computed(() => getSender(props.transactions[0]))
+const senderIdentity = computed(() => getIdentity(senderAddress.value))
+const senderIsEOA = computed(() => isEOA(senderIdentity.value))
+const senderIsBot = computed(() => isBot(senderIdentity.value))
+const senderProfileUrl = computed(() => {
+  const images = senderIdentity.value?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
+})
+
+// Token contract identity
+const tokenContractIdentity = computed(() => getIdentity(props.tokenContract))
+
+const tokenName = computed(() => {
+  const id = tokenContractIdentity.value
+  return id?.lsp4TokenSymbol || id?.lsp4TokenName || id?.name || 'Token'
+})
+
+const tokenIconUrl = computed(() => {
+  const icons = tokenContractIdentity.value?.icons
+  if (!icons?.length) return ''
+  const sorted = [...icons].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
+})
+
+const isNft = computed(() => {
+  const id = tokenContractIdentity.value
+  if (!id) {
+    // Fallback: check transaction standard
+    return props.transactions[0]?.standard?.toLowerCase().includes('lsp8') || false
+  }
+  return id.lsp4TokenType === 1 || id.lsp4TokenType === 2 ||
+    !!id.standard?.includes('LSP8') || !!id.standard?.includes('IdentifiableDigitalAsset')
+})
+
+const tokenDecimals = computed(() => tokenContractIdentity.value?.decimals ?? 18)
+
+// Unique recipients
+const uniqueRecipients = computed(() => {
+  const addrs = new Set<string>()
+  for (const tx of props.transactions) {
+    const receiver = getReceiver(tx)
+    // receiver here is actually the token contract (tx.to), so use the 'to' arg instead
+    const toArg = tx.args?.find(a => a.name === 'to')
+    if (toArg?.value && typeof toArg.value === 'string') {
+      addrs.add(toArg.value.toLowerCase())
+    } else if (receiver && receiver !== props.tokenContract.toLowerCase()) {
+      addrs.add(receiver)
+    }
+  }
+  return [...addrs]
+})
+
+const recipientCount = computed(() => uniqueRecipients.value.length)
+const previewRecipients = computed(() => uniqueRecipients.value.slice(0, 5))
+
+// Total token amount across all transactions (for LSP7)
+const totalFormatted = computed(() => {
+  if (isNft.value) return ''
+  try {
+    let total = 0n
+    for (const tx of props.transactions) {
+      const amountArg = tx.args?.find(a => a.name === 'amount')
+      if (amountArg?.value != null) {
+        total += BigInt(String(amountArg.value))
+      }
+    }
+    const dec = BigInt(tokenDecimals.value)
+    if (dec === 0n) {
+      const s = total.toString()
+      if (s.length > 12) return `${s[0]}.${s.slice(1, 4)}e${s.length - 1}`
+      return Number(total).toLocaleString('en-US')
+    }
+    const divisor = 10n ** dec
+    const whole = total / divisor
+    const frac = total % divisor
+    if (frac === 0n) return formatWhole(whole)
+    const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
+    return `${formatWhole(whole)}.${fracStr}`
+  } catch {
+    return ''
+  }
+})
+
+// Queue address resolution
+watchEffect(() => {
+  const addrs = new Set<string>()
+  addrs.add(props.tokenContract)
+  for (const tx of props.transactions) {
+    if (tx.from) addrs.add(tx.from)
+    if (tx.to) addrs.add(tx.to)
+    const toArg = tx.args?.find(a => a.name === 'to')
+    if (toArg?.value && typeof toArg.value === 'string') addrs.add(toArg.value)
+    const fromArg = tx.args?.find(a => a.name === 'from')
+    if (fromArg?.value && typeof fromArg.value === 'string') addrs.add(fromArg.value)
+  }
+  if (addrs.size) queueResolve(props.chainId, [...addrs])
+})
+
+function addrIsEOA(address: string): boolean {
+  return isEOA(getIdentity(address))
+}
+
+function getBlockie(address: string): string {
+  return makeBlockie(address)
+}
+
+function getProfileUrl(address: string): string {
+  const identity = getIdentity(address)
+  const images = identity?.profileImages
+  if (!images?.length) return ''
+  const sorted = [...images].sort((a, b) => a.width - b.width)
+  return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 24)
+}
+
+function toggleIfBackground(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
+  expanded.value = !expanded.value
+}
+</script>
+
+<style scoped>
+.nested-cards :deep(> *) {
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+</style>

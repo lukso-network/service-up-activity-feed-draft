@@ -20,6 +20,13 @@
           :transactions="item.transactions!"
           :chain-id="chainId"
         />
+        <!-- Token/NFT airdrop group -->
+        <TokenTransferGroupCard
+          v-else-if="item.type === 'token-transfer-group'"
+          :transactions="item.transactions!"
+          :chain-id="chainId"
+          :token-contract="item.sharedAddress!"
+        />
         <!-- Regular transaction -->
         <component
           v-else
@@ -67,6 +74,7 @@ import MomentCard from './cards/MomentCard.vue'
 import TokenUpdateCard from './cards/TokenUpdateCard.vue'
 import FollowGroupCard from './cards/FollowGroupCard.vue'
 import TransferGroupCard from './cards/TransferGroupCard.vue'
+import TokenTransferGroupCard from './cards/TokenTransferGroupCard.vue'
 import {
   FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
   LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
@@ -259,9 +267,19 @@ function getFollowTarget(tx: Transaction): string {
   return (tx.to || '').toLowerCase()
 }
 
+// --- Token transfer grouping helper ---
+
+function getTokenTransferSender(tx: Transaction): string {
+  const fromArg = tx.args?.find(a => a.name === 'from')
+  if (fromArg?.value && typeof fromArg.value === 'string') return fromArg.value.toLowerCase()
+  const executed = findLogByEvent(tx.logs, EXECUTED_EVENT)
+  if (executed?.address) return executed.address.toLowerCase()
+  return tx.from.toLowerCase()
+}
+
 type DisplayItem = {
   key: string
-  type: 'tx' | 'follow-group' | 'transfer-group'
+  type: 'tx' | 'follow-group' | 'transfer-group' | 'token-transfer-group'
   tx?: Transaction & { _virtualKey?: string }
   transactions?: Transaction[]
   groupType?: 'same-actor' | 'same-target'
@@ -382,6 +400,35 @@ const displayItems = computed<DisplayItem[]>(() => {
         items.push({ key: run[0].transactionHash, type: 'tx', tx: representative })
       } else {
         items.push({ key: tx.transactionHash, type: 'tx', tx })
+      }
+      i = j
+    } else if (type === 'token_transfer' || type === 'nft_transfer') {
+      // Group consecutive token/NFT transfers with same sender + same token contract (airdrop pattern)
+      const sender = getTokenTransferSender(tx)
+      const tokenContract = (tx.to || '').toLowerCase()
+      const run: (Transaction & { _virtualKey?: string })[] = [tx]
+      let j = i + 1
+      while (j < txs.length) {
+        const { type: nextType } = classifyTransaction(txs[j])
+        if ((nextType === 'token_transfer' || nextType === 'nft_transfer') &&
+            getTokenTransferSender(txs[j]) === sender &&
+            (txs[j].to || '').toLowerCase() === tokenContract) {
+          run.push(txs[j])
+          j++
+        } else {
+          break
+        }
+      }
+
+      if (run.length >= 2) {
+        items.push({
+          key: `token-transfer-group-${run[0].transactionHash}`,
+          type: 'token-transfer-group',
+          transactions: run,
+          sharedAddress: tokenContract,
+        })
+      } else {
+        items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
       }
       i = j
     } else if (type === 'value_transfer') {
