@@ -12,7 +12,6 @@
           :is-bot="senderIsBot"
           size="x-small"
         />
-        <div class="basis-full h-0 sm:hidden"></div>
 
         <!-- Description -->
         <span class="text-sm text-neutral-500 dark:text-neutral-400">
@@ -72,34 +71,50 @@
       <NftPreview :address="tokenContract" :chain-id="chainId" :token-id="firstTokenIdRaw" />
     </div>
 
-    <!-- Expanded: tab navigation + individual transfer cards -->
+    <!-- Expanded: individual transfer cards + TxDetails with arrow nav -->
     <div v-if="expanded" class="mt-3 border-t border-neutral-100 dark:border-neutral-850">
-      <!-- Numbered tabs for switching between transactions -->
-      <div class="flex gap-1 py-2 overflow-x-auto">
-        <button
-          v-for="(tx, i) in transactions"
-          :key="(tx as any)._virtualKey || tx.transactionHash"
-          @click.stop="activeTab = i"
-          class="px-2.5 py-1 text-xs font-medium rounded-lg transition-colors flex-shrink-0"
-          :class="activeTab === i
-            ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-800'
-            : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700'"
-        >
-          {{ i + 1 }}
-        </button>
-      </div>
-
-      <!-- TxDetails for active tab -->
-      <TxDetails :tx="(transactions[activeTab] as any)" />
-
       <!-- All individual transfer cards -->
-      <div class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
+      <div class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 nested-cards">
         <TransferCard
           v-for="tx in transactions"
           :key="(tx as any)._virtualKey || tx.transactionHash"
           :tx="tx"
           :chain-id="chainId"
         />
+      </div>
+
+      <!-- TxDetails with left/right arrow navigation -->
+      <div class="mt-3 border-t border-neutral-100 dark:border-neutral-850 pt-3">
+        <div class="flex items-center justify-between mb-2">
+          <button
+            @click.stop="currentTxIndex = Math.max(0, currentTxIndex - 1)"
+            :disabled="currentTxIndex === 0"
+            class="p-1 rounded transition-colors"
+            :class="currentTxIndex === 0
+              ? 'text-neutral-300 dark:text-neutral-600 cursor-not-allowed'
+              : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+            {{ currentTxIndex + 1 }} / {{ transactions.length }}
+          </span>
+          <button
+            @click.stop="currentTxIndex = Math.min(transactions.length - 1, currentTxIndex + 1)"
+            :disabled="currentTxIndex === transactions.length - 1"
+            class="p-1 rounded transition-colors"
+            :class="currentTxIndex === transactions.length - 1
+              ? 'text-neutral-300 dark:text-neutral-600 cursor-not-allowed'
+              : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+        <TxDetails :tx="(transactions[currentTxIndex] as any)" />
       </div>
     </div>
   </div>
@@ -127,7 +142,7 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
-const activeTab = ref(0)
+const currentTxIndex = ref(0)
 
 // Raw tokenId from first transaction (for NFT preview on main card)
 const firstTokenIdRaw = computed(() => {
