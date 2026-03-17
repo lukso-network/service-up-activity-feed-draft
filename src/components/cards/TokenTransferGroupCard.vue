@@ -66,9 +66,29 @@
       </div>
     </div>
 
-    <!-- NFT preview on main card (collapsed) -->
+    <!-- Token/NFT preview on main card (always visible) -->
     <div v-if="isNft && firstTokenIdRaw" class="mt-3">
       <NftPreview :address="tokenContract" :chain-id="chainId" :token-id="firstTokenIdRaw" />
+    </div>
+    <div v-else-if="tokenLargeImageUrl" class="mt-3">
+      <a
+        :href="`https://universaleverything.io/asset/${tokenContract}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-start gap-4 hover:opacity-90 transition-opacity no-underline"
+      >
+        <div class="flex-shrink-0 border border-neutral-200 dark:border-neutral-850 rounded-xl overflow-hidden">
+          <img
+            :src="tokenLargeImageUrl"
+            :alt="tokenName"
+            class="w-[140px] h-[140px] object-cover"
+            loading="lazy"
+          />
+          <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-850 bg-neutral-50 dark:bg-neutral-800">
+            <span class="text-xs text-neutral-500 font-mono">{{ tokenName }}</span>
+          </div>
+        </div>
+      </a>
     </div>
 
     <!-- Expanded: compact recipient rows + TxDetails with arrow nav -->
@@ -203,6 +223,24 @@ const tokenIconUrl = computed(() => {
   if (!icons?.length) return ''
   const sorted = [...icons].sort((a, b) => a.width - b.width)
   return optimizeImageUrl((sorted.find(i => i.width >= 32) || sorted[0]).src, 16)
+})
+
+// Larger token image for the card preview (icons or images at 140px)
+const tokenLargeImageUrl = computed(() => {
+  const id = tokenContractIdentity.value
+  if (!id) return ''
+  // Prefer images (larger artwork) over icons
+  const images = id.images
+  if (images?.length) {
+    const sorted = [...images].sort((a, b) => a.width - b.width)
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+  }
+  const icons = id.icons
+  if (icons?.length) {
+    const sorted = [...icons].sort((a, b) => a.width - b.width)
+    return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+  }
+  return ''
 })
 
 const isNft = computed(() => {
