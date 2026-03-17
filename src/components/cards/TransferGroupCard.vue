@@ -31,7 +31,7 @@
           </span>
         </div>
         <div class="basis-full h-0 sm:hidden"></div>
-        <span class="text-sm text-neutral-600 dark:text-neutral-300">
+        <span class="text-sm text-neutral-700 dark:text-neutral-300">
           {{ uniqueParticipants.length }} {{ uniqueParticipants.length === 1 ? 'user' : 'users' }} transferred
           <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ totalFormatted }}</span>
         </span>

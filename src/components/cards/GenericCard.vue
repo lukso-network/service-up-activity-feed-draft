@@ -15,7 +15,7 @@
 
     <template #content>
       <div class="flex items-center gap-2">
-        <span class="text-sm text-neutral-600 dark:text-neutral-300">
+        <span class="text-sm text-neutral-700 dark:text-neutral-300">
           {{ actionLabel }}
         </span>
         <span

@@ -12,7 +12,7 @@
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
-        <span class="text-sm text-neutral-600 dark:text-neutral-300">minted</span>
+        <span class="text-sm text-neutral-700 dark:text-neutral-300">minted</span>
         <a
           :href="`https://universaleverything.io/asset/${mintTokenContract}`"
           target="_blank"
@@ -42,7 +42,7 @@
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
-    <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+    <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
       minted
       <a
         :href="`https://universaleverything.io/asset/${mintTokenContract}`"
@@ -69,7 +69,7 @@
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
-    <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+    <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
       sent
       <a
         :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -118,7 +118,7 @@
           :key="r.address"
           class="flex items-center gap-2 text-sm"
         >
-          <span class="text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
+          <span class="text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
             {{ r.amount }}
             <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-3.5 h-3.5 rounded-full inline-block mx-0.5 align-text-bottom" :alt="tokenDisplayName" />
             {{ tokenDisplayName }} →
@@ -151,7 +151,7 @@
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+      <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
         sent
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -193,7 +193,7 @@
         size="x-small"
       />
       <div class="basis-full h-0 sm:hidden"></div>
-      <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+      <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
         {{ transferComment ? 'commented with' : (isLikesTransfer ? 'liked with' : 'sent') }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
@@ -226,7 +226,7 @@
       size="x-small"
     />
     <div class="basis-full h-0 sm:hidden"></div>
-    <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+    <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
       bridged <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> via
       <a
         :href="HYPERLANE_BRIDGE_URL"
@@ -266,7 +266,7 @@
     <div class="basis-full h-0 sm:hidden"></div>
 
     <!-- Action text -->
-    <span class="text-sm text-neutral-600 dark:text-neutral-300 flex items-center gap-1">
+    <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
       <template v-if="transferType === 'lyx'">
         Sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
       </template>

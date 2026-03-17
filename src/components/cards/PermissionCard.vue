@@ -14,7 +14,7 @@
     </template>
 
     <template #content>
-      <p class="text-sm text-neutral-600 dark:text-neutral-300">
+      <p class="text-sm text-neutral-700 dark:text-neutral-300">
         Updated permissions
       </p>
       <!-- Show target address if available -->

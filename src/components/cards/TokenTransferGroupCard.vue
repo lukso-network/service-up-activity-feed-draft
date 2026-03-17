@@ -14,7 +14,7 @@
         />
 
         <!-- Description -->
-        <span class="text-sm text-neutral-600 dark:text-neutral-300">
+        <span class="text-sm text-neutral-700 dark:text-neutral-300">
           airdropped
           <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
             <img v-if="tokenIconUrl" :src="tokenIconUrl" :alt="tokenName" class="w-4 h-4 rounded-full" />
@@ -75,35 +75,23 @@
     <div v-if="expanded" class="mt-3 border-t border-neutral-100 dark:border-neutral-850">
       <!-- Compact recipient grid -->
       <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-        <a
+        <div
           v-for="r in recipientRows"
           :key="r.address"
-          :href="`https://universaleverything.io/${r.address}`"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors no-underline min-w-0"
+          class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors min-w-0"
         >
-          <lukso-profile
-            v-if="addrIsEOA(r.address)"
-            :profile-url="getBlockie(r.address)"
-            size="x-small"
-          ></lukso-profile>
-          <lukso-profile
-            v-else
+          <ProfileBadge
+            :address="r.address"
+            :name="getIdentity(r.address)?.name"
             :profile-url="getProfileUrl(r.address)"
-            :profile-address="r.address"
-            has-identicon
+            :is-e-o-a="addrIsEOA(r.address)"
+            :is-bot="addrIsBot(r.address)"
             size="x-small"
-          ></lukso-profile>
-          <div class="min-w-0 flex-1">
-            <div class="text-xs font-medium text-neutral-800 dark:text-neutral-200 truncate">
-              {{ getIdentity(r.address)?.name || shortenAddr(r.address) }}
-            </div>
-            <div v-if="r.detail" class="text-[10px] text-neutral-400 dark:text-neutral-500 truncate">
-              {{ r.detail }}
-            </div>
-          </div>
-        </a>
+          />
+          <span v-if="r.detail" class="text-[10px] text-neutral-400 dark:text-neutral-500 whitespace-nowrap flex-shrink-0">
+            {{ r.detail }}
+          </span>
+        </div>
       </div>
 
       <!-- TxDetails with left/right arrow navigation -->
@@ -248,10 +236,6 @@ const uniqueRecipients = computed(() => {
 const recipientCount = computed(() => uniqueRecipients.value.length)
 const previewRecipients = computed(() => uniqueRecipients.value.slice(0, 5))
 
-function shortenAddr(addr: string): string {
-  return addr.length > 10 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr
-}
-
 // Detailed recipient rows for expanded view
 const recipientRows = computed(() => {
   // Build a map: recipient address → detail (amount for LSP7, tokenId for LSP8)
@@ -351,6 +335,10 @@ watchEffect(() => {
 
 function addrIsEOA(address: string): boolean {
   return isEOA(getIdentity(address))
+}
+
+function addrIsBot(address: string): boolean {
+  return isBot(getIdentity(address))
 }
 
 function getBlockie(address: string): string {

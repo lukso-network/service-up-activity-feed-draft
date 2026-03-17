@@ -14,7 +14,7 @@
             size="x-small"
           />
           <div class="basis-full h-0 sm:hidden"></div>
-          <span class="text-sm text-neutral-600 dark:text-neutral-300">
+          <span class="text-sm text-neutral-700 dark:text-neutral-300">
             {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ transactions.length }} people {{ isUnfollow ? '👋' : '👤' }}
           </span>
           <div class="flex items-center -space-x-1">
@@ -74,7 +74,7 @@
             </span>
           </div>
           <div class="basis-full h-0 sm:hidden"></div>
-          <span class="text-sm text-neutral-600 dark:text-neutral-300">
+          <span class="text-sm text-neutral-700 dark:text-neutral-300">
             {{ transactions.length }} people {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ isUnfollow ? '👋' : '👤' }}
           </span>
           <div class="basis-full h-0 sm:hidden"></div>
