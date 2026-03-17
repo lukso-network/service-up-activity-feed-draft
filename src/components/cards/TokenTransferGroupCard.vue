@@ -67,14 +67,40 @@
       </div>
     </div>
 
-    <!-- Expanded: individual transfer cards -->
-    <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
-      <TransferCard
-        v-for="tx in transactions"
-        :key="(tx as any)._virtualKey || tx.transactionHash"
-        :tx="tx"
-        :chain-id="chainId"
-      />
+    <!-- NFT preview on main card (collapsed) -->
+    <div v-if="isNft && firstTokenIdRaw" class="mt-3">
+      <NftPreview :address="tokenContract" :chain-id="chainId" :token-id="firstTokenIdRaw" />
+    </div>
+
+    <!-- Expanded: tab navigation + individual transfer cards -->
+    <div v-if="expanded" class="mt-3 border-t border-neutral-100 dark:border-neutral-850">
+      <!-- Numbered tabs for switching between transactions -->
+      <div class="flex gap-1 py-2 overflow-x-auto">
+        <button
+          v-for="(tx, i) in transactions"
+          :key="(tx as any)._virtualKey || tx.transactionHash"
+          @click.stop="activeTab = i"
+          class="px-2.5 py-1 text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+          :class="activeTab === i
+            ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-800'
+            : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700'"
+        >
+          {{ i + 1 }}
+        </button>
+      </div>
+
+      <!-- TxDetails for active tab -->
+      <TxDetails :tx="(transactions[activeTab] as any)" />
+
+      <!-- All individual transfer cards -->
+      <div class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
+        <TransferCard
+          v-for="tx in transactions"
+          :key="(tx as any)._virtualKey || tx.transactionHash"
+          :tx="tx"
+          :chain-id="chainId"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -89,6 +115,8 @@ import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TransferCard from './TransferCard.vue'
+import NftPreview from '../shared/NftPreview.vue'
+import TxDetails from '../shared/TxDetails.vue'
 
 const props = defineProps<{
   transactions: Transaction[]
@@ -99,6 +127,15 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
+const activeTab = ref(0)
+
+// Raw tokenId from first transaction (for NFT preview on main card)
+const firstTokenIdRaw = computed(() => {
+  const tx = props.transactions[0]
+  const argTokenId = tx?.args?.find(a => a.name === 'tokenId')
+  if (argTokenId?.value) return String(argTokenId.value)
+  return ''
+})
 
 // --- Helpers ---
 
@@ -246,5 +283,9 @@ function toggleIfBackground(e: MouseEvent) {
   background: transparent !important;
   border-radius: 0 !important;
   border: none !important;
+}
+
+.nested-cards :deep(img.rounded-full) {
+  border-radius: 0.5rem !important; /* rounded-lg instead of rounded-full */
 }
 </style>
