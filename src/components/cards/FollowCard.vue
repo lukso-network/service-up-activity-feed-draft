@@ -12,7 +12,7 @@
     <div class="basis-full h-0 sm:hidden"></div>
 
     <!-- Action text -->
-    <span class="text-sm text-neutral-500 dark:text-neutral-400">
+    <span class="text-sm text-neutral-600 dark:text-neutral-300">
       {{ isUnfollow ? 'unfollowed 👋' : 'followed 👤' }}
     </span>
 

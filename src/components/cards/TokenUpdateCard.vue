@@ -12,7 +12,7 @@
           size="x-small"
         />
         <div class="basis-full h-0 sm:hidden"></div>
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">
+        <span class="text-sm text-neutral-600 dark:text-neutral-300">
           {{ actionText }}
           <span v-if="groupCount > 1" class="text-neutral-400 dark:text-neutral-500">{{ groupCount }}x</span>
         </span>

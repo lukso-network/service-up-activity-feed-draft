@@ -14,7 +14,7 @@
         />
 
         <!-- Description -->
-        <span class="text-sm text-neutral-500 dark:text-neutral-400">
+        <span class="text-sm text-neutral-600 dark:text-neutral-300">
           airdropped
           <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
             <img v-if="tokenIconUrl" :src="tokenIconUrl" :alt="tokenName" class="w-4 h-4 rounded-full" />
@@ -71,16 +71,39 @@
       <NftPreview :address="tokenContract" :chain-id="chainId" :token-id="firstTokenIdRaw" />
     </div>
 
-    <!-- Expanded: individual transfer cards + TxDetails with arrow nav -->
+    <!-- Expanded: compact recipient rows + TxDetails with arrow nav -->
     <div v-if="expanded" class="mt-3 border-t border-neutral-100 dark:border-neutral-850">
-      <!-- All individual transfer cards -->
-      <div class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 nested-cards">
-        <TransferCard
-          v-for="tx in transactions"
-          :key="(tx as any)._virtualKey || tx.transactionHash"
-          :tx="tx"
-          :chain-id="chainId"
-        />
+      <!-- Compact recipient grid -->
+      <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <a
+          v-for="r in recipientRows"
+          :key="r.address"
+          :href="`https://universaleverything.io/${r.address}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors no-underline min-w-0"
+        >
+          <lukso-profile
+            v-if="addrIsEOA(r.address)"
+            :profile-url="getBlockie(r.address)"
+            size="x-small"
+          ></lukso-profile>
+          <lukso-profile
+            v-else
+            :profile-url="getProfileUrl(r.address)"
+            :profile-address="r.address"
+            has-identicon
+            size="x-small"
+          ></lukso-profile>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-medium text-neutral-800 dark:text-neutral-200 truncate">
+              {{ getIdentity(r.address)?.name || shortenAddr(r.address) }}
+            </div>
+            <div v-if="r.detail" class="text-[10px] text-neutral-400 dark:text-neutral-500 truncate">
+              {{ r.detail }}
+            </div>
+          </div>
+        </a>
       </div>
 
       <!-- TxDetails with left/right arrow navigation -->
@@ -129,7 +152,6 @@ import { isEOA, isBot, makeBlockie } from '../../lib/eoa'
 import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import ProfileBadge from '../shared/ProfileBadge.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
-import TransferCard from './TransferCard.vue'
 import NftPreview from '../shared/NftPreview.vue'
 import TxDetails from '../shared/TxDetails.vue'
 
@@ -226,6 +248,64 @@ const uniqueRecipients = computed(() => {
 const recipientCount = computed(() => uniqueRecipients.value.length)
 const previewRecipients = computed(() => uniqueRecipients.value.slice(0, 5))
 
+function shortenAddr(addr: string): string {
+  return addr.length > 10 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr
+}
+
+// Detailed recipient rows for expanded view
+const recipientRows = computed(() => {
+  // Build a map: recipient address → detail (amount for LSP7, tokenId for LSP8)
+  const rows: Array<{ address: string; detail: string }> = []
+  const seen = new Set<string>()
+  for (const tx of props.transactions) {
+    const toArg = tx.args?.find(a => a.name === 'to')
+    const addr = (toArg?.value && typeof toArg.value === 'string')
+      ? toArg.value.toLowerCase()
+      : ''
+    if (!addr || seen.has(addr)) continue
+    seen.add(addr)
+    let detail = ''
+    if (isNft.value) {
+      const tokenIdArg = tx.args?.find(a => a.name === 'tokenId')
+      if (tokenIdArg?.value) {
+        const idStr = String(tokenIdArg.value)
+        // For NUMBER format, show #N
+        try {
+          const n = BigInt(idStr)
+          if (n < 100000n) detail = `#${n}`
+          else detail = `${idStr.slice(0, 6)}…`
+        } catch {
+          detail = idStr.length > 10 ? `${idStr.slice(0, 6)}…` : idStr
+        }
+      }
+    } else {
+      const amountArg = tx.args?.find(a => a.name === 'amount')
+      if (amountArg?.value != null) {
+        try {
+          const val = BigInt(String(amountArg.value))
+          const dec = BigInt(tokenDecimals.value)
+          if (dec === 0n) {
+            detail = Number(val).toLocaleString('en-US')
+          } else {
+            const divisor = 10n ** dec
+            const whole = val / divisor
+            const frac = val % divisor
+            if (frac === 0n) {
+              detail = Number(whole).toLocaleString('en-US')
+            } else {
+              const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 2)
+              detail = `${Number(whole).toLocaleString('en-US')}.${fracStr}`
+            }
+          }
+          detail += ` ${tokenName.value}`
+        } catch { /* skip */ }
+      }
+    }
+    rows.push({ address: addr, detail })
+  }
+  return rows
+})
+
 // Total token amount across all transactions (for LSP7)
 const totalFormatted = computed(() => {
   if (isNft.value) return ''
@@ -292,15 +372,4 @@ function toggleIfBackground(e: MouseEvent) {
 }
 </script>
 
-<style scoped>
-.nested-cards :deep(> *) {
-  box-shadow: none !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  border: none !important;
-}
 
-.nested-cards :deep(img.rounded-full) {
-  border-radius: 0.5rem !important; /* rounded-lg instead of rounded-full */
-}
-</style>

@@ -8,7 +8,7 @@
         :is-bot="actorIsBot"
         size="x-small"
       />
-      <span class="text-sm text-neutral-500 dark:text-neutral-400">created a new moment</span>
+      <span class="text-sm text-neutral-600 dark:text-neutral-300">created a new moment</span>
       <span class="text-base">📸</span>
       <TimeStamp :timestamp="tx.blockTimestamp" />
     </template>

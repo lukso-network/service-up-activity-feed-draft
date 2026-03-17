@@ -12,7 +12,7 @@
     <div class="basis-full h-0 sm:hidden"></div>
 
     <!-- Action text -->
-    <span class="text-sm text-neutral-500 dark:text-neutral-400 truncate">
+    <span class="text-sm text-neutral-600 dark:text-neutral-300 truncate">
       Contract interaction
       <span v-if="selectorDisplay" class="font-mono text-neutral-400 dark:text-neutral-500">
         {{ selectorDisplay }}
