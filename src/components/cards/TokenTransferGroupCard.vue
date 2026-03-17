@@ -145,7 +145,7 @@
             </svg>
           </button>
         </div>
-        <TxDetails :tx="(transactions[currentTxIndex] as any)" />
+        <TxDetails :key="currentTxIndex" :tx="(transactions[currentTxIndex] as any)" />
       </div>
     </div>
   </div>
