@@ -432,7 +432,7 @@ const mintAmount = computed(() => {
   const amountArg = mintTransferLog.value.args?.find((a: any) => a.name === 'amount')
   if (!amountArg?.value) return '1' // NFT default
   try {
-    const val = BigInt(String(amountArg.value))
+    const val = BigInt(String(amountArg.value).replace(/n$/, ''))
     const dec = BigInt(mintTokenIdentity.value?.decimals ?? 18)
     if (dec === 0n) {
       const s = val.toString()
@@ -535,7 +535,7 @@ const batchTotalAmount = computed(() => {
   if (!Array.isArray(amounts)) return ''
   try {
     let total = 0n
-    for (const a of amounts) total += BigInt(String(a))
+    for (const a of amounts) total += BigInt(String(a).replace(/n$/, ''))
     const dec = BigInt(tokenDecimals.value)
     if (dec === 0n) return total.toString()
     const divisor = 10n ** dec
@@ -558,7 +558,7 @@ const batchRecipients = computed(() => {
     const raw = amountArr[i]
     let formatted = ''
     try {
-      const val = BigInt(String(raw))
+      const val = BigInt(String(raw).replace(/n$/, ''))
       if (dec === 0n) {
         formatted = Number(val).toLocaleString('en-US')
       } else {
@@ -778,7 +778,7 @@ const tokenAmount = computed(() => {
   const rawAmount = getArg('amount')
   if (rawAmount == null) return ''
   try {
-    const val = BigInt(String(rawAmount))
+    const val = BigInt(String(rawAmount).replace(/n$/, ''))
     const dec = BigInt(tokenDecimals.value)
     if (dec === 0n) {
       const s = val.toString()

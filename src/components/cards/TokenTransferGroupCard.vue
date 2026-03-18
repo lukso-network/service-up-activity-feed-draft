@@ -220,7 +220,7 @@ const currentTxAmount = computed(() => {
   const amountArg = currentTx.value.args?.find(a => a.name === 'amount')
   if (amountArg?.value == null) return ''
   try {
-    const val = BigInt(String(amountArg.value))
+    const val = BigInt(String(amountArg.value).replace(/n$/, ''))
     const dec = BigInt(tokenDecimals.value)
     const divisor = dec === 0n ? 1n : 10n ** dec
     const whole = val / divisor
@@ -367,7 +367,7 @@ const recipientRows = computed(() => {
       const amountArg = tx.args?.find(a => a.name === 'amount')
       if (amountArg?.value != null) {
         try {
-          const val = BigInt(String(amountArg.value))
+          const val = BigInt(String(amountArg.value).replace(/n$/, ''))
           const dec = BigInt(tokenDecimals.value)
           if (dec === 0n) {
             detail = Number(val).toLocaleString('en-US')
@@ -399,7 +399,7 @@ const totalFormatted = computed(() => {
     for (const tx of props.transactions) {
       const amountArg = tx.args?.find(a => a.name === 'amount')
       if (amountArg?.value != null) {
-        total += BigInt(String(amountArg.value))
+        total += BigInt(String(amountArg.value).replace(/n$/, ''))
       }
     }
     const dec = BigInt(tokenDecimals.value)
