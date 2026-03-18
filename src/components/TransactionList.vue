@@ -420,7 +420,8 @@ const displayItems = computed<DisplayItem[]>(() => {
         }
       }
 
-      if (run.length >= 3) {
+      if (run.length >= 10) {
+        // Large batch → airdrop card
         items.push({
           key: `token-transfer-group-${run[0].transactionHash}`,
           type: 'token-transfer-group',
@@ -428,7 +429,10 @@ const displayItems = computed<DisplayItem[]>(() => {
           sharedAddress: tokenContract,
         })
       } else {
-        items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
+        // Small batch → individual cards
+        for (const t of run) {
+          items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
+        }
       }
       i = j
     } else if (type === 'value_transfer') {

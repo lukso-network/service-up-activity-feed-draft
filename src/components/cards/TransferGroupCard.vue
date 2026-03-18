@@ -88,20 +88,12 @@ function getSender(tx: Transaction): string {
   return tx.from.toLowerCase()
 }
 
-function getReceiver(tx: Transaction): string {
-  const toArg = tx.args?.find(a => a.name === 'to')
-  if (toArg?.value && typeof toArg.value === 'string') return toArg.value.toLowerCase()
-  return (tx.to || '').toLowerCase()
-}
-
-// Collect unique participants (senders + receivers)
+// Collect unique senders (the ones who transferred)
 const uniqueParticipants = computed(() => {
   const addrs = new Set<string>()
   for (const tx of props.transactions) {
     const sender = getSender(tx)
-    const receiver = getReceiver(tx)
     if (sender) addrs.add(sender)
-    if (receiver) addrs.add(receiver)
   }
   return [...addrs]
 })
