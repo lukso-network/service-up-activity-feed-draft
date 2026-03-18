@@ -162,11 +162,12 @@ async function fetchPage(): Promise<boolean> {
 // Batch operations need splitting into individual action entries:
 // - followBatch/unfollowBatch: split args.addresses into individual follow/unfollow txs
 // - executeBatch: children (non-wrapper) are separate actions → promote each
-// - transferBatch: handled downstream in TransactionList.vue (LIKES splitting)
+// - transferBatch: split array args (to/from/amount/tokenId) into individual transfers
 // - Single operations: just show parent, skip all children (they're call-chain wrappers)
 //
 const BATCH_FUNCTIONS = ['followBatch', 'unfollowBatch']
 const EXECUTE_BATCH_FUNCTIONS = ['executeBatch']
+const TRANSFER_BATCH_FUNCTIONS = ['transferBatch']
 
 const mappedTransactions = computed(() => {
   const results: Transaction[] = []
@@ -193,7 +194,42 @@ const mappedTransactions = computed(() => {
       }
     }
 
-    // 2. executeBatch → promote non-wrapper children as separate actions
+    // 2. transferBatch → split array args into individual transfer entries
+    if (TRANSFER_BATCH_FUNCTIONS.includes(fn)) {
+      const toArg = drAny.args?.find((a: any) => a.name === 'to')
+      const fromArg = drAny.args?.find((a: any) => a.name === 'from')
+      const amountArg = drAny.args?.find((a: any) => a.name === 'amount')
+      const tokenIdArg = drAny.args?.find((a: any) => a.name === 'tokenId')
+      if (toArg?.value && Array.isArray(toArg.value) && toArg.value.length > 0) {
+        const baseTx = mapDecoderResultToTransaction(dr)
+        const count = toArg.value.length
+        for (let i = 0; i < count; i++) {
+          const singleArgs: any[] = []
+          if (fromArg?.value) {
+            const fromVal = Array.isArray(fromArg.value) ? fromArg.value[i] : fromArg.value
+            singleArgs.push({ name: 'from', internalType: 'address', type: 'address', value: String(fromVal) })
+          }
+          singleArgs.push({ name: 'to', internalType: 'address', type: 'address', value: String(toArg.value[i]) })
+          if (amountArg?.value) {
+            const amtVal = Array.isArray(amountArg.value) ? amountArg.value[i] : amountArg.value
+            singleArgs.push({ name: 'amount', internalType: 'uint256', type: 'uint256', value: String(amtVal) })
+          }
+          if (tokenIdArg?.value) {
+            const tidVal = Array.isArray(tokenIdArg.value) ? tokenIdArg.value[i] : tokenIdArg.value
+            singleArgs.push({ name: 'tokenId', internalType: 'bytes32', type: 'bytes32', value: String(tidVal) })
+          }
+          results.push({
+            ...baseTx,
+            _virtualKey: `${baseTx.transactionHash}-transferBatch-${i}`,
+            functionName: 'transfer',
+            args: singleArgs,
+          } as any)
+        }
+        continue
+      }
+    }
+
+    // 3. executeBatch → promote non-wrapper children as separate actions
     if (EXECUTE_BATCH_FUNCTIONS.includes(fn)) {
       const children = drAny.children
       if (children && Array.isArray(children)) {
