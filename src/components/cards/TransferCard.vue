@@ -268,10 +268,10 @@
     <!-- Action text -->
     <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
       <template v-if="transferType === 'lyx'">
-        Sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
+        sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
       </template>
       <template v-else-if="transferType === 'lsp7'">
-        Sent
+        sent
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
@@ -284,7 +284,7 @@
         </a> to
       </template>
       <template v-else>
-        Sent
+        sent
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
