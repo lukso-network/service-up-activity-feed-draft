@@ -152,7 +152,7 @@
       />
       <div class="basis-full h-0 sm:hidden"></div>
       <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
-        sent
+        {{ isBurn ? 'burned' : 'sent' }}
         <a
           :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
           target="_blank"
@@ -162,11 +162,11 @@
           <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
           <span>{{ nftDisplayAmount }}{{ tokenDisplayName }}</span>
         </a>
-        to
+        {{ isBurn ? '🔥' : 'to' }}
       </span>
-      <div class="basis-full h-0 sm:hidden"></div>
+      <div v-if="!isBurn" class="basis-full h-0 sm:hidden"></div>
       <ProfileBadge
-        v-if="receiver"
+        v-if="receiver && !isBurn"
         :address="receiver"
         :name="toIdentity?.name"
         :profile-url="toProfileUrl"
@@ -267,7 +267,35 @@
 
     <!-- Action text -->
     <span class="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
-      <template v-if="transferType === 'lyx'">
+      <template v-if="isBurn && transferType === 'lyx'">
+        burned <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> 🔥
+      </template>
+      <template v-else-if="isBurn && transferType === 'lsp7'">
+        burned
+        <a
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <span>{{ tokenAmount }}</span>
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> 🔥
+      </template>
+      <template v-else-if="isBurn">
+        burned
+        <a
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a> 🔥
+      </template>
+      <template v-else-if="transferType === 'lyx'">
         sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
       </template>
       <template v-else-if="transferType === 'lsp7'">
@@ -299,27 +327,29 @@
 
     <div class="basis-full h-0 sm:hidden"></div>
 
-    <!-- Target (receiver) -->
-    <template v-if="receiverIsAsset">
-      <a
-        :href="`https://universaleverything.io/asset/${receiver}`"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex flex-nowrap items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
-      >
-        <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
-        <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
-      </a>
+    <!-- Target (receiver) — hidden for burns -->
+    <template v-if="!isBurn">
+      <template v-if="receiverIsAsset">
+        <a
+          :href="`https://universaleverything.io/asset/${receiver}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex flex-nowrap items-center gap-1.5 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
+        >
+          <img v-if="receiverIconUrl" :src="receiverIconUrl" class="w-6 h-6 rounded-full" :alt="receiverAssetName" />
+          <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ receiverAssetName }}</span>
+        </a>
+      </template>
+      <ProfileBadge
+        v-else
+        :address="receiver"
+        :name="toIdentity?.name"
+        :profile-url="toProfileUrl"
+        :is-e-o-a="toIsEOA"
+            :is-bot="toIsBot"
+        size="x-small"
+      />
     </template>
-    <ProfileBadge
-      v-else
-      :address="receiver"
-      :name="toIdentity?.name"
-      :profile-url="toProfileUrl"
-      :is-e-o-a="toIsEOA"
-          :is-bot="toIsBot"
-      size="x-small"
-    />
 
     <!-- Timestamp -->
     <TimeStamp :timestamp="tx.blockTimestamp" />
@@ -519,6 +549,17 @@ const fromProfileUrl = computed(() => {
 const receiver = computed(() => {
   if (isBatchTransfer.value) return '' // no single receiver for batch
   return getArgString('to') || props.tx.to
+})
+
+// Burn detection: transfer to dead/zero addresses
+const BURN_ADDRESSES = new Set([
+  '0x0000000000000000000000000000000000000000',
+  '0x000000000000000000000000000000000000dead',
+  '0x0000000000000000000000000000000000000001',
+])
+const isBurn = computed(() => {
+  const to = receiver.value?.toLowerCase() || ''
+  return BURN_ADDRESSES.has(to)
 })
 
 // Batch: count of recipients
