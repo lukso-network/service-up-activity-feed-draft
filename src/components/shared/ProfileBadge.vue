@@ -19,8 +19,8 @@
     ></lukso-profile>
     <lukso-username
       :name="displayName"
-      :address="isEOA ? '' : address"
-      :prefix="isEOA ? '' : '@'"
+      :address="hasName ? address : ''"
+      :prefix="hasName ? '@' : ''"
       :size="nextSize"
       :address-color="isDark ? '#9cb6c9' : ''"
     ></lukso-username>
@@ -52,10 +52,12 @@ const blockieUrl = computed(() =>
   props.isEOA && props.address ? makeBlockie(props.address) : ''
 )
 
+const hasName = computed(() => !!props.name)
+
 const displayName = computed(() => {
   if (props.name) return props.name
-  if (props.isEOA) return shortenAddress(props.address)
-  return ''
+  // No name — show shortened address for both EOAs and unresolved UPs
+  return shortenAddress(props.address)
 })
 
 const nextSize = computed(() => {
