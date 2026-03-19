@@ -18,9 +18,9 @@
       :size="size"
     ></lukso-profile>
     <lukso-username
-      :name="name || ''"
-      :address="address"
-      prefix="@"
+      :name="displayName"
+      :address="isEOA ? '' : address"
+      :prefix="isEOA ? '' : '@'"
       :size="nextSize"
       :address-color="isDark ? '#9cb6c9' : ''"
     ></lukso-username>
@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { makeBlockie } from '../../lib/eoa'
+import { shortenAddress } from '../../lib/formatters'
 import { useDarkMode } from '../../composables/useDarkMode'
 import BotBadge from './BotBadge.vue'
 
@@ -50,6 +51,12 @@ const props = defineProps<{
 const blockieUrl = computed(() =>
   props.isEOA && props.address ? makeBlockie(props.address) : ''
 )
+
+const displayName = computed(() => {
+  if (props.name) return props.name
+  if (props.isEOA) return shortenAddress(props.address)
+  return ''
+})
 
 const nextSize = computed(() => {
   const cur = props.size || 'x-small'
