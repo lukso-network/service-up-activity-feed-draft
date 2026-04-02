@@ -51,8 +51,8 @@
         <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
         <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
       </svg>
-      <p class="text-neutral-600 dark:text-neutral-300 text-lg font-medium mb-1">No activity visible yet.</p>
-      <p class="text-neutral-400 dark:text-neutral-500 text-sm">It's a quiet moment, wait for things to happen!</p>
+      <p class="text-[#A1A1AA] text-lg font-medium mb-1">No activity visible yet.</p>
+      <p class="text-[#A1A1AA] text-sm">It's a quiet moment, wait for things to happen!</p>
     </div>
   </div>
 </template>
