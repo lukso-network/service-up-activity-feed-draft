@@ -46,13 +46,13 @@
     </div>
 
     <!-- Empty state -->
-    <div v-if="!transactions.length && !loading" class="py-16 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center">
-        <svg class="w-8 h-8 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-        </svg>
-      </div>
-      <p class="text-neutral-500 dark:text-neutral-400 text-sm">No activity found</p>
+    <div v-if="!transactions.length && !loading" class="py-16 flex flex-col items-center text-center">
+      <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="mb-6">
+        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+      </svg>
+      <p class="text-neutral-600 dark:text-neutral-300 text-lg font-medium mb-1">No activity visible yet.</p>
+      <p class="text-neutral-400 dark:text-neutral-500 text-sm">It's a quiet moment, wait for things to happen!</p>
     </div>
   </div>
 </template>
