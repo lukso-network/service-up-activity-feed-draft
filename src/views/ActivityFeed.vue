@@ -43,7 +43,7 @@
 
     <ErrorState v-if="errorMessage" :message="errorMessage" @retry="() => {}" />
 
-    <LoadingSkeleton v-else-if="isLoading" />
+    <LoadingSkeleton v-else-if="isLoading || initialLoading" />
 
     <TransactionList
       v-else
@@ -52,7 +52,7 @@
       :profile-address="address"
       :has-more="apiHasMore"
       :loading-more="loadingMore || _loadMoreRunning"
-      :loading="isLoading"
+      :loading="isLoading || initialLoading"
       @load-more="handleLoadMore"
     />
   </div>
@@ -93,6 +93,9 @@ const {
   address: address.value || undefined,
   baseUrl: SDK_BASE_URL,
 })
+
+// Track initial bootstrap loading — prevents empty state flash
+const initialLoading = ref(true)
 
 // API pagination hasMore — tracked by our direct pagination loop
 // Moved: apiHasMore defined after _paginationHasMore ref
@@ -154,6 +157,8 @@ async function fetchPage(): Promise<boolean> {
     console.log(`[bootstrap] done after ${attempts} pages, filtered=${filteredTransactions!.value.length}, raw=${visibleTransactions.value.length}`)
   } catch (e) {
     console.error('[ActivityFeed] initial fetch failed:', e)
+  } finally {
+    initialLoading.value = false
   }
 })()
 
