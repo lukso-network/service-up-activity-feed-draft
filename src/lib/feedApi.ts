@@ -71,7 +71,25 @@ export async function fetchFeed(
     }
   `
   const data = await graphqlQuery<{ Feed: any[] }>(query, { profileId: profileId.toLowerCase() })
-  return parseFeedEntries(data.Feed)
+  if (data.Feed.length > 0) return parseFeedEntries(data.Feed)
+
+  // Fallback: also try profileArgs (the profile might be referenced in events, not the emitter)
+  const fallbackQuery = `
+    query ProfileArgsFeed($profileId: String!) {
+      Feed(
+        limit: ${limit},
+        where: {
+          profileArgs: { profile_id: { _eq: $profileId } }
+          ${cursorWhere}
+        },
+        order_by: [{ blockNumber: desc }, { logIndex: desc }]
+      ) {
+        ${FEED_FIELDS}
+      }
+    }
+  `
+  const fallback = await graphqlQuery<{ Feed: any[] }>(fallbackQuery, { profileId: profileId.toLowerCase() })
+  return parseFeedEntries(fallback.Feed)
 }
 
 /**
