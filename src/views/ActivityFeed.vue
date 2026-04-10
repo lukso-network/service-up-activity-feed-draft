@@ -59,8 +59,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect, onUnmounted } from 'vue'
+import { ref, computed, watchEffect, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
+import { ADDRESS_RESOLUTION_KEY } from '@lukso/activity-sdk/vue'
+import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
 import { useFeedApi } from '../composables/useFeedApi'
 import { feedEntryToTransaction } from '../lib/feedAdapter'
 import { classifyFeedEntry } from '../lib/feedClassifier'
@@ -75,6 +77,22 @@ const chainId = computed(() => parseInt(route.params.chainId as string) || 42)
 const address = computed(() => ((route.params.address as string) || '').toLowerCase())
 
 const devMode = computed(() => route.query.devmode !== undefined)
+
+// --- Address resolution (re-uses SDK's store + provides context for card components) ---
+const ADDRESS_RESOLUTION_BASE = 'https://feed.api.universalprofile.cloud'
+const addressStore = new AddressResolutionStore({
+  chainId: 42,
+  baseUrl: ADDRESS_RESOLUTION_BASE,
+})
+const resolvedAddresses = ref<Record<string, any>>({})
+addressStore.subscribe((resolved) => { resolvedAddresses.value = resolved })
+provide(ADDRESS_RESOLUTION_KEY as any, {
+  resolvedAddresses,
+  requestResolution: (key: any) => addressStore.requestResolution(key),
+  isResolving: (key: any) => addressStore.isResolving(key),
+})
+onMounted(() => { /* store starts resolving on first requestResolution call */ })
+onUnmounted(() => { addressStore.destroy() })
 
 // --- Feed API composable (replaces SDK) ---
 // Pass the computed ref so it reacts to route changes
