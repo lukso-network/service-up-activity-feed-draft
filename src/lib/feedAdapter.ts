@@ -61,6 +61,10 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         args,
         fromName: d.fromName,
         toName: d.toName,
+        feedTokenName: d.tokenName,
+        feedTokenSymbol: d.tokenSymbol,
+        feedFormattedAmount: d.formattedAmount,
+        feedTokenDecimals: d.decimals,
       }
     }
 
@@ -83,6 +87,8 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         args,
         fromName: d.fromName,
         toName: d.toName,
+        feedTokenName: d.tokenName,
+        feedTokenSymbol: d.tokenSymbol,
       }
     }
 

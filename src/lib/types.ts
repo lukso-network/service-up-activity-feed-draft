@@ -43,6 +43,13 @@ export interface Transaction {
   fromImage?: string
   toName?: string
   toImage?: string
+  // Feed API pre-decoded token metadata (avoids waiting for address resolver)
+  feedTokenName?: string
+  feedTokenSymbol?: string
+  feedFormattedAmount?: string
+  feedTokenDecimals?: number
+  feedTokenIconUrl?: string
+  feedTokenImageUrl?: string
 }
 
 export interface ActivityResponse {

@@ -664,7 +664,7 @@ watchEffect(() => {
   if (addrs.length) queueResolve(props.chainId, addrs)
 })
 
-const tokenDecimals = computed(() => tokenContractIdentity.value?.decimals ?? 18)
+const tokenDecimals = computed(() => tokenContractIdentity.value?.decimals ?? props.tx.feedTokenDecimals ?? 18)
 
 const isLikesTransfer = computed(() =>
   tokenContractAddress.value?.toLowerCase() === LIKES_TOKEN ||
@@ -773,12 +773,15 @@ const formattedAmount = computed(() => {
   return ''
 })
 
-// Token amount: directly from args.amount (API pre-decodes it)
+// Token amount: prefer feedFormattedAmount (pre-formatted by Feed API), then compute from args.amount
 const tokenAmount = computed(() => {
+  if (props.tx.feedFormattedAmount) return props.tx.feedFormattedAmount
   const rawAmount = getArg('amount')
   if (rawAmount == null) return ''
+  // Strip BigInt 'n' suffix if present
+  const cleanAmount = String(rawAmount).replace(/^(-?\d+)n$/, '$1')
   try {
-    const val = BigInt(String(rawAmount))
+    const val = BigInt(cleanAmount)
     const dec = BigInt(tokenDecimals.value)
     if (dec === 0n) {
       const s = val.toString()
@@ -793,7 +796,7 @@ const tokenAmount = computed(() => {
     const fracStr = frac.toString().padStart(Number(dec), '0').replace(/0+$/, '').slice(0, 4)
     return `${formatWhole(whole)}.${fracStr}`
   } catch {
-    return String(rawAmount).length > 30 ? '' : String(rawAmount)
+    return cleanAmount.length > 30 ? '' : cleanAmount
   }
 })
 
@@ -801,6 +804,7 @@ const tokenAmount = computed(() => {
 const tokenDisplayName = computed(() => {
   const identity = tokenContractIdentity.value
   return identity?.lsp4TokenSymbol || identity?.lsp4TokenName || identity?.name ||
+    props.tx.feedTokenSymbol || props.tx.feedTokenName ||
     (transferType.value === 'lsp8' ? 'NFT' : 'Token')
 })
 

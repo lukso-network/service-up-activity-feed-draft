@@ -31,11 +31,23 @@ async function graphqlQuery<T>(query: string, variables: Record<string, unknown>
   return json.data
 }
 
+/** Strip BigInt 'n' suffix from string values in decoded data */
+function stripBigIntSuffixes(obj: any): any {
+  if (typeof obj === 'string') return obj.replace(/^(-?\d+)n$/, '$1')
+  if (Array.isArray(obj)) return obj.map(stripBigIntSuffixes)
+  if (obj && typeof obj === 'object') {
+    const result: any = {}
+    for (const key of Object.keys(obj)) result[key] = stripBigIntSuffixes(obj[key])
+    return result
+  }
+  return obj
+}
+
 function parseFeedEntries(raw: any[]): FeedEntry[] {
-  return raw.map((entry) => ({
-    ...entry,
-    decoded: typeof entry.decoded === 'string' ? JSON.parse(entry.decoded) : entry.decoded,
-  }))
+  return raw.map((entry) => {
+    const decoded = typeof entry.decoded === 'string' ? JSON.parse(entry.decoded) : entry.decoded
+    return { ...entry, decoded: stripBigIntSuffixes(decoded) }
+  })
 }
 
 /**
