@@ -77,6 +77,8 @@ const address = computed(() => ((route.params.address as string) || '').toLowerC
 const devMode = computed(() => route.query.devmode !== undefined)
 
 // --- Feed API composable (replaces SDK) ---
+// Pass the computed ref so it reacts to route changes
+const profileIdRef = computed(() => address.value || undefined)
 const {
   feedEntries,
   loading: isLoading,
@@ -85,7 +87,7 @@ const {
   hasMore: apiHasMore,
   loadMore,
   refresh,
-} = useFeedApi(address.value || undefined)
+} = useFeedApi(profileIdRef)
 
 const initialLoading = ref(false) // Feed API handles initial load internally
 
