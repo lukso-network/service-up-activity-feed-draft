@@ -65,7 +65,7 @@ import { ADDRESS_RESOLUTION_KEY } from '@lukso/activity-sdk/vue'
 import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
 import { useFeedApi } from '../composables/useFeedApi'
 import { feedEntryToTransaction } from '../lib/feedAdapter'
-import { classifyFeedEntry } from '../lib/feedClassifier'
+import { classifyTransaction } from '../lib/formatters'
 import type { Transaction } from '../lib/types'
 import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
@@ -122,16 +122,19 @@ const KNOWN_TX_TYPES = new Set([
   'contract_execution',
 ])
 
-// Adapt FeedEntry[] → Transaction[] for existing card components
+// Adapt FeedEntry[] → Transaction[] for existing card components.
+// Filter uses classifyTransaction on the adapted tx so action_executed entries
+// that the adapter couldn't remap to a known card type fall through as 'unknown'.
 const filteredTransactions = computed(() => {
   const entries = feedEntries.value
   const adapted: Transaction[] = []
   for (const entry of entries) {
+    const tx = feedEntryToTransaction(entry)
     if (!devMode.value) {
-      const { type } = classifyFeedEntry(entry)
+      const { type } = classifyTransaction(tx)
       if (!KNOWN_TX_TYPES.has(type)) continue
     }
-    adapted.push(feedEntryToTransaction(entry))
+    adapted.push(tx)
   }
   return adapted
 })

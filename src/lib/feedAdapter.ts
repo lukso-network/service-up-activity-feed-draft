@@ -141,13 +141,106 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
 
     case 'action_executed': {
       const d = decoded as ActionExecutedDecoded
-      return {
-        ...base,
-        from: d.profile || entry.address || '',
-        to: d.target || '',
-        value: d.value || '0',
-        functionName: 'execute',
+      const innerTx = (d.transaction || {}) as Record<string, unknown>
+      const innerFn = String(innerTx.functionName || '')
+      const innerStd = String(innerTx.standard || '')
+      const innerArgsRaw: unknown = innerTx.args
+      const innerArgs: Array<Record<string, unknown>> = Array.isArray(innerArgsRaw)
+        ? (innerArgsRaw as Array<Record<string, unknown>>)
+        : []
+      const profile = d.profile || entry.address || ''
+      const target = d.target || ''
+      const outerValueRaw = String(d.value || '0').replace(/n$/, '')
+
+      const findArg = (name: string): unknown =>
+        innerArgs.find((a) => a?.name === name)?.value
+
+      const passThroughArgs: TransactionArg[] = innerArgs.map((a) => ({
+        name: String(a?.name || ''),
+        internalType: String(a?.internalType || a?.type || ''),
+        type: String(a?.type || ''),
+        value: a?.value,
+        indexed: typeof a?.indexed === 'boolean' ? (a.indexed as boolean) : undefined,
+      }))
+
+      // Follow / Unfollow via LSP26 — show as a follow/unfollow card
+      if (innerFn === 'follow' || innerFn === 'unfollow') {
+        const isUnfollow = innerFn === 'unfollow'
+        const followee = String(findArg('addr') ?? innerArgs[0]?.value ?? '')
+        return {
+          ...base,
+          from: profile,
+          to: LSP26_CONTRACT,
+          functionName: isUnfollow ? 'unfollow' : 'follow',
+          standard: 'LSP26',
+          args: [
+            { name: 'addr', internalType: 'address', type: 'address', value: followee },
+          ],
+        }
       }
+
+      // LSP7 token transfer / mint — single
+      if (innerStd === 'LSP7DigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint')) {
+        const fromVal = findArg('from')
+        const from = typeof fromVal === 'string' ? fromVal : profile
+        return {
+          ...base,
+          from,
+          to: target, // token contract
+          functionName: innerFn,
+          standard: 'LSP7DigitalAsset',
+          args: passThroughArgs,
+        }
+      }
+
+      // LSP7 transferBatch — TransactionList.vue splits this into individual transfers
+      if (innerStd === 'LSP7DigitalAsset' && innerFn === 'transferBatch') {
+        const fromArg = findArg('from')
+        const from = Array.isArray(fromArg) && typeof fromArg[0] === 'string'
+          ? (fromArg[0] as string)
+          : profile
+        return {
+          ...base,
+          from,
+          to: target,
+          functionName: 'transferBatch',
+          standard: 'LSP7DigitalAsset',
+          args: passThroughArgs,
+        }
+      }
+
+      // LSP8 NFT transfer / mint
+      if (innerStd === 'LSP8IdentifiableDigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint')) {
+        const fromVal = findArg('from')
+        const from = typeof fromVal === 'string' ? fromVal : profile
+        return {
+          ...base,
+          from,
+          to: target,
+          functionName: innerFn,
+          standard: 'LSP8IdentifiableDigitalAsset',
+          args: passThroughArgs,
+        }
+      }
+
+      // Plain LYX send via execute — no matching standard above, but outer value > 0
+      try {
+        if (BigInt(outerValueRaw || '0') > 0n) {
+          return {
+            ...base,
+            from: profile,
+            to: target,
+            value: outerValueRaw,
+            // intentionally no functionName/standard → classifyTransaction picks value_transfer
+          }
+        }
+      } catch {
+        // ignore BigInt parse errors
+      }
+
+      // Unknown / unmappable (executeBatch on UP, authorizeOperator, transferOwnership,
+      // undecoded execute, followBatch, etc.) → return base so filter drops it as 'unknown'
+      return base
     }
 
     default:
