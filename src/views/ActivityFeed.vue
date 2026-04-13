@@ -43,7 +43,7 @@
 
     <ErrorState v-if="errorMessage" :message="errorMessage" @retry="() => {}" />
 
-    <LoadingSkeleton v-else-if="isLoading" />
+    <LoadingSkeleton v-else-if="isLoading || initialLoading" />
 
     <TransactionList
       v-else
@@ -51,25 +51,25 @@
       :chain-id="chainId"
       :profile-address="address"
       :has-more="apiHasMore"
-      :loading-more="loadingMore || _loadMoreRunning"
-      :loading="isLoading"
+      :loading-more="loadingMore"
+      :loading="isLoading || initialLoading"
       @load-more="handleLoadMore"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect, onUnmounted } from 'vue'
+import { ref, computed, watchEffect, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
-import { useTransactionList } from '@lukso/activity-sdk/vue'
-import type { Transaction } from '../lib/types'
+import { ADDRESS_RESOLUTION_KEY } from '@lukso/activity-sdk/vue'
+import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
+import { useFeedApi } from '../composables/useFeedApi'
+import { feedEntryToTransaction } from '../lib/feedAdapter'
 import { classifyTransaction } from '../lib/formatters'
-import { mapDecoderResultToTransaction } from '../lib/mapDecoderResult'
+import type { Transaction } from '../lib/types'
 import TransactionList from '../components/TransactionList.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
-
-const SDK_BASE_URL = 'https://feed.api.universalprofile.cloud'
 
 const route = useRoute()
 
@@ -78,153 +78,52 @@ const address = computed(() => ((route.params.address as string) || '').toLowerC
 
 const devMode = computed(() => route.query.devmode !== undefined)
 
-// --- SDK composable ---
+// --- Feed API composable (replaces SDK) ---
+// Pass the computed ref so it reacts to route changes
+const profileIdRef = computed(() => address.value || undefined)
 const {
-  visibleTransactions,
-  isLoading,
-  error,
+  feedEntries,
+  loading: isLoading,
   loadingMore,
-  newTransactionCount: _newTransactionCount,
-  loadQueuedTransactions,
-  initializeData,
-  loadMoreTransactions,
-} = useTransactionList({
-  chainId: chainId.value,
-  address: address.value || undefined,
-  baseUrl: SDK_BASE_URL,
-})
+  error,
+  hasMore: apiHasMore,
+  loadMore,
+  refresh,
+  enrichedIdentities,
+} = useFeedApi(profileIdRef)
 
-// API pagination hasMore — tracked by our direct pagination loop
-// Moved: apiHasMore defined after _paginationHasMore ref
+// --- Address resolution (re-uses SDK's store + provides context for card components) ---
+// Enriched identities from the feed query are merged with the store's resolved addresses,
+// giving cards immediate access to profile names, token icons, etc. without waiting
+// for separate resolution API calls.
+const ADDRESS_RESOLUTION_BASE = 'https://feed.api.universalprofile.cloud'
+const addressStore = new AddressResolutionStore({
+  chainId: 42,
+  baseUrl: ADDRESS_RESOLUTION_BASE,
+})
+const storeAddresses = ref<Record<string, any>>({})
+addressStore.subscribe((resolved) => { storeAddresses.value = resolved })
+
+// Merge enriched data (pre-loaded from feed query) with store-resolved addresses.
+// Store data takes precedence as it may be more complete.
+const resolvedAddresses = computed(() => ({
+  ...enrichedIdentities.value,
+  ...storeAddresses.value,
+}))
+
+provide(ADDRESS_RESOLUTION_KEY as any, {
+  resolvedAddresses,
+  requestResolution: (key: any) => addressStore.requestResolution(key),
+  isResolving: (key: any) => addressStore.isResolving(key),
+})
+onMounted(() => { /* store starts resolving on first requestResolution call */ })
+onUnmounted(() => { addressStore.destroy() })
+
+const initialLoading = ref(false) // Feed API handles initial load internally
 
 const errorMessage = computed(() => error.value?.message ?? null)
 
-// Direct API pagination — bypasses SDK throttling issues.
-// Accumulates all fetched data and re-initializes the SDK with the full dataset.
-// (SDK's initialize() replaces transactions, so we must pass everything each time.)
-let _nextToBlock: number | null = null
-const _paginationHasMore = ref(true)
-const apiHasMore = computed(() => _paginationHasMore.value)
-let _allFetchedData: any[] = []
-
-
-async function fetchPage(): Promise<boolean> {
-  const body: Record<string, any> = { chainId: chainId.value }
-  if (address.value) body.address = address.value
-  if (_nextToBlock !== null) body.toBlock = _nextToBlock
-
-  const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  const respData = await res.json()
-  if (!respData.success) {
-    _paginationHasMore.value = false
-    return false
-  }
-  // Accumulate data from all pages
-  if (respData.data?.length) {
-    _allFetchedData = [..._allFetchedData, ...respData.data]
-  }
-  _nextToBlock = respData.pagination?.nextToBlock ?? null
-  _paginationHasMore.value = respData.pagination?.hasMore !== false && _nextToBlock !== null && _nextToBlock > 0
-  // Re-initialize SDK with ALL accumulated data
-
-  await initializeData({
-    ...respData,
-    data: _allFetchedData,
-  })
-  // SDK's initialize() caps visibleTransactions to _itemsToShow (default 20).
-  // Show ALL buffered items so our filtering sees the full dataset.
-  loadMoreTransactions(true)
-  return respData.data?.length > 0
-}
-
-// Bootstrap: fetch pages until we have enough visible (filtered) transactions
-;(async () => {
-  try {
-    let attempts = 0
-    while (attempts < 30 && _paginationHasMore.value) {
-      await fetchPage()
-      attempts++
-      await new Promise(r => setTimeout(r, 50))
-      if (filteredTransactions!.value.length >= 20) break
-    }
-    console.log(`[bootstrap] done after ${attempts} pages, filtered=${filteredTransactions!.value.length}, raw=${visibleTransactions.value.length}`)
-  } catch (e) {
-    console.error('[ActivityFeed] initial fetch failed:', e)
-  }
-})()
-
-// --- Map SDK DecoderResult[] → local Transaction[] (with batch splitting) ---
-//
-// Batch operations need splitting into individual action entries:
-// - followBatch/unfollowBatch: split args.addresses into individual follow/unfollow txs
-// - executeBatch: children (non-wrapper) are separate actions → promote each
-// - transferBatch: handled downstream in TransactionList.vue (LIKES splitting)
-// - Single operations: just show parent, skip all children (they're call-chain wrappers)
-//
-const BATCH_FUNCTIONS = ['followBatch', 'unfollowBatch']
-const EXECUTE_BATCH_FUNCTIONS = ['executeBatch']
-
-const mappedTransactions = computed(() => {
-  const results: Transaction[] = []
-  for (const dr of visibleTransactions.value) {
-    const drAny = dr as any
-    const fn = drAny.functionName || ''
-
-    // 1. followBatch/unfollowBatch → split args.addresses into individual entries
-    if (BATCH_FUNCTIONS.includes(fn)) {
-      const addressesArg = drAny.args?.find((a: any) => a.name === 'addresses')
-      if (addressesArg?.value && Array.isArray(addressesArg.value)) {
-        const baseTx = mapDecoderResultToTransaction(dr)
-        for (let i = 0; i < addressesArg.value.length; i++) {
-          const addr = String(addressesArg.value[i])
-          results.push({
-            ...baseTx,
-            _virtualKey: `${baseTx.transactionHash}-${fn}-${i}`,
-            functionName: fn === 'unfollowBatch' ? 'unfollow' : 'follow',
-            to: drAny.to, // LSP26 contract
-            args: [{ name: 'addr', internalType: 'address', type: 'address', value: addr }],
-          } as any)
-        }
-        continue
-      }
-    }
-
-    // 2. executeBatch → promote non-wrapper children as separate actions
-    if (EXECUTE_BATCH_FUNCTIONS.includes(fn)) {
-      const children = drAny.children
-      if (children && Array.isArray(children)) {
-        let promoted = 0
-        for (const child of children) {
-          if (child.resultType === 'wrapper') continue
-          if (!child.transactionHash && !child.functionName) continue
-          const childTx = mapDecoderResultToTransaction(child)
-          // Inherit parent block info if child is missing it
-          if (!childTx.blockTimestamp) {
-            childTx.blockTimestamp = drAny.blockTimestamp || 0
-            childTx.blockNumber = drAny.blockNumber || '0'
-            childTx.blockHash = drAny.blockHash || ''
-            childTx.transactionHash = childTx.transactionHash || drAny.transactionHash || ''
-          }
-          results.push(childTx)
-          promoted++
-        }
-        // If we promoted children, skip the parent batch entry
-        if (promoted > 0) continue
-      }
-    }
-
-    // 3. Default: show the parent transaction, skip children
-    results.push(mapDecoderResultToTransaction(dr))
-  }
-  return results
-})
-
-// --- Filter (same logic as before) ---
-// Known card types that we have dedicated UI for
+// --- Filter known card types ---
 const KNOWN_TX_TYPES = new Set([
   'follow', 'unfollow',
   'token_transfer', 'nft_transfer', 'value_transfer',
@@ -232,44 +131,28 @@ const KNOWN_TX_TYPES = new Set([
   'profile_update', 'token_metadata_update',
   'permission_change',
   'create_moment',
+  'contract_execution',
 ])
 
-function txFilter(tx: Transaction): boolean {
-  if (tx.status === 0) return false
-  if (devMode.value) return true
-  const { type } = classifyTransaction(tx)
-  return KNOWN_TX_TYPES.has(type)
-}
-
-// eslint-disable-next-line prefer-const
-let filteredTransactions = computed(() => {
-  const txs = devMode.value ? mappedTransactions.value : mappedTransactions.value.filter(txFilter)
-  // Sort by timestamp descending (newest first), then by transactionIndex descending
-  return [...txs].sort((a, b) => {
-    const timeDiff = (b.blockTimestamp || 0) - (a.blockTimestamp || 0)
-    if (timeDiff !== 0) return timeDiff
-    return (b.transactionIndex || 0) - (a.transactionIndex || 0)
-  })
+// Adapt FeedEntry[] → Transaction[] for existing card components.
+// Filter uses classifyTransaction on the adapted tx so action_executed entries
+// that the adapter couldn't remap to a known card type fall through as 'unknown'.
+const filteredTransactions = computed(() => {
+  const entries = feedEntries.value
+  const adapted: Transaction[] = []
+  for (const entry of entries) {
+    const tx = feedEntryToTransaction(entry)
+    if (!devMode.value) {
+      const { type } = classifyTransaction(tx)
+      if (!KNOWN_TX_TYPES.has(type)) continue
+    }
+    adapted.push(tx)
+  }
+  return adapted
 })
 
-// Keep loading pages until we have enough visible (filtered) transactions
-// Load more when scrolling to end — fetch pages directly until 20 new visible items
-const _loadMoreRunning = ref(false)
 async function handleLoadMore() {
-  console.log('[handleLoadMore] called, running=', _loadMoreRunning.value, 'hasMore=', _paginationHasMore.value)
-  if (_loadMoreRunning.value || !_paginationHasMore.value) return
-  _loadMoreRunning.value = true
-  try {
-    const target = filteredTransactions.value.length + 20
-    let attempts = 0
-    while (filteredTransactions.value.length < target && _paginationHasMore.value && attempts < 30) {
-      await fetchPage()
-      attempts++
-      await new Promise(r => setTimeout(r, 50))
-    }
-  } finally {
-    _loadMoreRunning.value = false
-  }
+  await loadMore()
 }
 
 // --- Page title ---
@@ -298,8 +181,7 @@ async function doRefresh() {
   refreshing.value = true
   pullDistance.value = 0
   overscrollAccum = 0
-  // Merge any queued transactions from polling
-  loadQueuedTransactions()
+  await refresh()
   refreshing.value = false
   // Show green checkmark for 600ms then fade out
   refreshDone.value = true
@@ -346,38 +228,16 @@ async function onTouchEnd() {
   }
 }
 
-// --- Auto-poll for new transactions (per-profile feeds only) ---
+// --- Auto-poll for new entries (per-profile feeds only) ---
 let _pollTimer: ReturnType<typeof setInterval> | null = null
 if (address.value) {
   _pollTimer = setInterval(async () => {
     try {
-      // Fetch the latest page (no toBlock = newest)
-      const body: Record<string, any> = { chainId: chainId.value, address: address.value }
-      const res = await fetch(`${SDK_BASE_URL}/api/activity`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const respData = await res.json()
-      if (!respData.success || !respData.data?.length) return
-
-      // Find genuinely new transactions not in our accumulated data
-      const existingHashes = new Set(_allFetchedData.map((d: any) => d.transactionHash))
-      const newItems = respData.data.filter((d: any) => !existingHashes.has(d.transactionHash))
-      if (!newItems.length) return
-
-      console.log(`[auto-poll] found ${newItems.length} new transactions`)
-      // Prepend new items and re-initialize
-      _allFetchedData = [...newItems, ..._allFetchedData]
-      await initializeData({
-        ...respData,
-        data: _allFetchedData,
-      })
-      loadMoreTransactions(true)
+      await refresh()
     } catch (e) {
       console.warn('[auto-poll] error:', e)
     }
-  }, 60_000) // every 60 seconds
+  }, 60_000)
 }
 
 onUnmounted(() => {
