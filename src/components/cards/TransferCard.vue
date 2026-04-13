@@ -696,6 +696,7 @@ const transferTokenIdDisplay = computed(() => {
 // lsp4TokenType: 0=Token (currency), 1=NFT, 2=Collection
 // If 1 or 2, show as NFT card regardless of who the receiver is
 const isNftToken = computed(() => {
+  if (transferType.value === 'lsp8') return true
   const tokenType = tokenContractIdentity.value?.lsp4TokenType
   return tokenType === 1 || tokenType === 2
 })
