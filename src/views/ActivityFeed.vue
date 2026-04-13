@@ -78,22 +78,6 @@ const address = computed(() => ((route.params.address as string) || '').toLowerC
 
 const devMode = computed(() => route.query.devmode !== undefined)
 
-// --- Address resolution (re-uses SDK's store + provides context for card components) ---
-const ADDRESS_RESOLUTION_BASE = 'https://feed.api.universalprofile.cloud'
-const addressStore = new AddressResolutionStore({
-  chainId: 42,
-  baseUrl: ADDRESS_RESOLUTION_BASE,
-})
-const resolvedAddresses = ref<Record<string, any>>({})
-addressStore.subscribe((resolved) => { resolvedAddresses.value = resolved })
-provide(ADDRESS_RESOLUTION_KEY as any, {
-  resolvedAddresses,
-  requestResolution: (key: any) => addressStore.requestResolution(key),
-  isResolving: (key: any) => addressStore.isResolving(key),
-})
-onMounted(() => { /* store starts resolving on first requestResolution call */ })
-onUnmounted(() => { addressStore.destroy() })
-
 // --- Feed API composable (replaces SDK) ---
 // Pass the computed ref so it reacts to route changes
 const profileIdRef = computed(() => address.value || undefined)
@@ -105,7 +89,35 @@ const {
   hasMore: apiHasMore,
   loadMore,
   refresh,
+  enrichedIdentities,
 } = useFeedApi(profileIdRef)
+
+// --- Address resolution (re-uses SDK's store + provides context for card components) ---
+// Enriched identities from the feed query are merged with the store's resolved addresses,
+// giving cards immediate access to profile names, token icons, etc. without waiting
+// for separate resolution API calls.
+const ADDRESS_RESOLUTION_BASE = 'https://feed.api.universalprofile.cloud'
+const addressStore = new AddressResolutionStore({
+  chainId: 42,
+  baseUrl: ADDRESS_RESOLUTION_BASE,
+})
+const storeAddresses = ref<Record<string, any>>({})
+addressStore.subscribe((resolved) => { storeAddresses.value = resolved })
+
+// Merge enriched data (pre-loaded from feed query) with store-resolved addresses.
+// Store data takes precedence as it may be more complete.
+const resolvedAddresses = computed(() => ({
+  ...enrichedIdentities.value,
+  ...storeAddresses.value,
+}))
+
+provide(ADDRESS_RESOLUTION_KEY as any, {
+  resolvedAddresses,
+  requestResolution: (key: any) => addressStore.requestResolution(key),
+  isResolving: (key: any) => addressStore.isResolving(key),
+})
+onMounted(() => { /* store starts resolving on first requestResolution call */ })
+onUnmounted(() => { addressStore.destroy() })
 
 const initialLoading = ref(false) // Feed API handles initial load internally
 

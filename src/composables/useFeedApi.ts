@@ -1,5 +1,5 @@
 import { ref, watch, type Ref, type ComputedRef, isRef } from 'vue'
-import { fetchFeed, fetchGlobalFeed } from '../lib/feedApi'
+import { fetchFeed, fetchGlobalFeed, extractEnrichedIdentities } from '../lib/feedApi'
 import type { FeedEntry } from '../lib/feedTypes'
 
 export interface UseFeedApiReturn {
@@ -8,6 +8,8 @@ export interface UseFeedApiReturn {
   loadingMore: Ref<boolean>
   error: Ref<Error | null>
   hasMore: Ref<boolean>
+  /** Pre-loaded identity data extracted from feed query relationships */
+  enrichedIdentities: Ref<Record<string, any>>
   loadMore: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -15,7 +17,7 @@ export interface UseFeedApiReturn {
 /**
  * Vue composable for the Envio Feed API.
  * Replaces useTransactionList from @lukso/activity-sdk.
- * 
+ *
  * @param profileId - Profile address (string, Ref<string>, or undefined for global feed)
  * @param pageSize - Number of entries per page (default 25)
  */
@@ -28,6 +30,7 @@ export function useFeedApi(
   const loadingMore = ref(false)
   const error = ref<Error | null>(null)
   const hasMore = ref(true)
+  const enrichedIdentities = ref<Record<string, any>>({})
 
   // Cursor state for pagination
   let cursorBlock: number | undefined
@@ -43,6 +46,14 @@ export function useFeedApi(
       const last = entries[entries.length - 1]
       cursorBlock = last.blockNumber
       cursorLogIndex = last.logIndex
+    }
+  }
+
+  /** Merge new enriched identities from a batch of entries */
+  function mergeEnrichedIdentities(entries: FeedEntry[]) {
+    const newIdentities = extractEnrichedIdentities(entries)
+    if (Object.keys(newIdentities).length > 0) {
+      enrichedIdentities.value = { ...enrichedIdentities.value, ...newIdentities }
     }
   }
 
@@ -66,10 +77,12 @@ export function useFeedApi(
     loading.value = true
     error.value = null
     feedEntries.value = []
-    
+    enrichedIdentities.value = {}
+
     try {
       const entries = await fetchPage()
       feedEntries.value = entries
+      mergeEnrichedIdentities(entries)
     } catch (e) {
       error.value = e instanceof Error ? e : new Error(String(e))
       console.error('[useFeedApi] load failed:', e)
@@ -85,6 +98,7 @@ export function useFeedApi(
       const entries = await fetchPage()
       if (entries.length > 0) {
         feedEntries.value = [...feedEntries.value, ...entries]
+        mergeEnrichedIdentities(entries)
       }
     } catch (e) {
       console.error('[useFeedApi] loadMore failed:', e)
@@ -113,6 +127,7 @@ export function useFeedApi(
     loadingMore,
     error,
     hasMore,
+    enrichedIdentities,
     loadMore,
     refresh,
   }

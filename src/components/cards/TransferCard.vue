@@ -728,7 +728,19 @@ const isLikeAction = computed(() => {
   if (isBatchTransfer.value) return false
   if (isNftToken.value) return false // handled by isNftToken card above
   if (transferType.value !== 'lsp7' && transferType.value !== 'lyx') return false
-  return receiverIsForeverMoment.value
+  if (receiverIsForeverMoment.value) return true
+
+  // Fallback for newly minted Moments that haven't been indexed by Envio yet.
+  // If LIKES are sent to an unknown address (not a known profile), assume it's a Like action.
+  if (isLikesTransfer.value) {
+    const identity = toIdentity.value
+    if (identity && (identity.name || identity.profileImages?.length || (identity as any).__gqltype === 'Profile')) {
+      return false
+    }
+    return true
+  }
+
+  return false
 })
 
 // Fetch Envio data for receiver (determines if it's an asset + gets moment details)

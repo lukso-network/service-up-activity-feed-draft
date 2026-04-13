@@ -111,6 +111,21 @@ watch(() => props.address, (addr) => {
         if (meta.name) envioMomentName.value = meta.name
         if (meta.lsp4TokenName) envioCollectionName.value = meta.lsp4TokenName
         if (meta.assets?.length) envioAssets.value = meta.assets
+      } else {
+        // Fallback for newly minted Moments that haven't been indexed by Envio yet
+        fetchLSP4MetadataFallback(addr).then(metaFallback => {
+          if (metaFallback) {
+            if (metaFallback.name) envioMomentName.value = metaFallback.name
+            if (metaFallback.images?.length) {
+               // mock TokenAsset to work with effectiveImageUrl logic
+               envioAssets.value = metaFallback.images[0].map((img: any) => ({
+                 fileType: 'image',
+                 src: img.url,
+                 url: img.url
+               }))
+            }
+          }
+        }).catch(() => {})
       }
     })
     fetchLikesBalance(addr).then(count => {
@@ -118,6 +133,41 @@ watch(() => props.address, (addr) => {
     })
   }
 }, { immediate: true })
+
+async function fetchLSP4MetadataFallback(address: string) {
+  try {
+    const res = await fetch('https://rpc.mainnet.lukso.network', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_call',
+        params: [{
+          to: address,
+          data: '0x54f6127f9afb95cacc9f95858ec44aa8c3b685511002e30ae54415823f406128b85b238e'
+        }, 'latest']
+      })
+    })
+    const { result } = await res.json()
+    if (!result || result === '0x') return null
+    let ascii = ''
+    for (let i = 130; i < result.length; i += 2) {
+      const code = parseInt(result.slice(i, i + 2), 16)
+      if (code > 31 && code < 127) ascii += String.fromCharCode(code)
+    }
+    const match = ascii.match(/(ipfs:\/\/[a-zA-Z0-9]+)/)
+    if (match) {
+      const url = match[1].replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/')
+      const metaRes = await fetch(url)
+      const json = await metaRes.json()
+      return json.LSP4Metadata
+    }
+  } catch {
+    return null
+  }
+  return null
+}
 
 const momentUrl = computed(() => `https://www.forevermoments.life/moments/${props.address}`)
 
