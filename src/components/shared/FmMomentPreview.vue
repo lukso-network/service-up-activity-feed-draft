@@ -121,8 +121,8 @@ watch(() => props.address, (addr) => {
                // mock TokenAsset to work with effectiveImageUrl logic
                envioAssets.value = imgs.map((img: any) => ({
                  fileType: 'image/',
-                 src: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/'),
-                 url: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/'),
+                 src: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/image/'),
+                 url: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/image/'),
                  width: img.width,
                  height: img.height
                }))
