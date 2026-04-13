@@ -116,12 +116,15 @@ watch(() => props.address, (addr) => {
         fetchLSP4MetadataFallback(addr).then(metaFallback => {
           if (metaFallback) {
             if (metaFallback.name) envioMomentName.value = metaFallback.name
-            if (metaFallback.images?.length) {
+            const imgs = metaFallback.images?.length ? metaFallback.images[0] : (metaFallback.icon || [])
+            if (imgs.length) {
                // mock TokenAsset to work with effectiveImageUrl logic
-               envioAssets.value = metaFallback.images[0].map((img: any) => ({
-                 fileType: 'image',
-                 src: img.url,
-                 url: img.url
+               envioAssets.value = imgs.map((img: any) => ({
+                 fileType: 'image/',
+                 src: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/'),
+                 url: img.url.replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/'),
+                 width: img.width,
+                 height: img.height
                }))
             }
           }
@@ -192,6 +195,16 @@ const imageUrl = computed(() => {
   if (icons?.length) {
     const sorted = [...(icons || [])].sort((a, b) => a.width - b.width)
     return optimizeImageUrl((sorted.find(i => i.width >= 120) || sorted[sorted.length - 1]).src, 140)
+  }
+  // Fallback to Envio / LSP4Fallback assets
+  const assets = envioAssets.value
+  if (assets?.length) {
+    const imageAssets = assets.filter(a => !a.fileType || a.fileType.startsWith('image'))
+    if (imageAssets.length) {
+      // Sort by width if available
+      const sorted = [...imageAssets].sort((a, b) => ((a as any).width || 0) - ((b as any).width || 0))
+      return optimizeImageUrl(sorted[0].src || sorted[0].url || '', 140)
+    }
   }
   return ''
 })
