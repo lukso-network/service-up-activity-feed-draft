@@ -8,6 +8,20 @@ const LSP26_CONTRACT = '0xf01103e5a9909fc0dbe8166da7085e0c86ba0296'
  * Adapt a FeedEntry to the existing Transaction interface so all existing
  * card components work without modification. This is the bridge layer.
  */
+function parseDecimalToWei(str: string | undefined): string {
+  if (!str) return '0'
+  let clean = str.replace(/n$/, '')
+  if (clean.includes('.')) {
+    let [whole, frac] = clean.split('.')
+    whole = whole || '0'
+    frac = frac || ''
+    if (frac.length > 18) frac = frac.slice(0, 18)
+    frac = frac.padEnd(18, '0')
+    return whole + frac
+  }
+  return clean + '000000000000000000'
+}
+
 export function feedEntryToTransaction(entry: FeedEntry): Transaction {
   const base: Transaction = {
     blockHash: '',
@@ -36,7 +50,7 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         ...base,
         from: d.from || '',
         to: d.to || '',
-        value: d.amount || '0',
+        value: parseDecimalToWei(d.amount),
         fromName: (d as LyxReceivedDecoded).senderName,
         toName: (d as LyxSentDecoded).receiverName,
       }
