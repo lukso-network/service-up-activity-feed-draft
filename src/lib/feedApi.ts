@@ -13,17 +13,21 @@ const FEED_FIELDS = `
   dataKey
   decoded
   timestamp
-  profileArgs {
+  profileArgs(limit: 3) {
     profile {
       id
       name
       standard
       isEOA
-      profileImages { src width height }
+      profileImages(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
+        src
+        width
+        height
+      }
       tags
     }
   }
-  assetArgs {
+  assetArgs(limit: 3) {
     asset {
       id
       name
@@ -36,20 +40,38 @@ const FEED_FIELDS = `
       isCollection
       standard
       owner_id
-      icons { src width height }
-      images { src width height }
-      lsp4Creators { profile_id }
+      icons(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
+        src
+        width
+        height
+      }
+      images(order_by: {width: desc}, where: { index: { _eq: 0 }, error: { _is_null: true } }, limit: 1) {
+        src
+        width
+        height
+      }
+      lsp4Creators(limit: 3) {
+        profile_id
+      }
     }
   }
-  tokenArgs {
+  tokenArgs(limit: 3) {
     token {
       id
       tokenId
       name
       lsp4TokenName
       asset_id
-      icons { src width height }
-      images { src width height }
+      icons(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
+        src
+        width
+        height
+      }
+      images(order_by: {width: desc}, where: { index: { _eq: 0 }, error: { _is_null: true } }, limit: 1) {
+        src
+        width
+        height
+      }
     }
   }
 `
