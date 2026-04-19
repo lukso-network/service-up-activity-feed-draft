@@ -7,7 +7,6 @@ const FEED_FIELDS = `
   blockNumber
   transactionHash
   logIndex
-  transactionIndex
   address
   eventType
   dataKey
@@ -17,14 +16,11 @@ const FEED_FIELDS = `
     profile {
       id
       name
-      standard
-      isEOA
       profileImages(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
         src
         width
         height
       }
-      tags
     }
   }
   assetArgs(limit: 3) {
@@ -35,10 +31,6 @@ const FEED_FIELDS = `
       lsp4TokenSymbol
       lsp4TokenType
       decimals
-      lsp8TokenIdFormat
-      isLSP7
-      isCollection
-      standard
       owner_id
       icons(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
         src
@@ -50,27 +42,8 @@ const FEED_FIELDS = `
         width
         height
       }
-      lsp4Creators(limit: 3) {
+      lsp4Creators(limit: 1) {
         profile_id
-      }
-    }
-  }
-  tokenArgs(limit: 3) {
-    token {
-      id
-      tokenId
-      name
-      lsp4TokenName
-      asset_id
-      icons(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
-        src
-        width
-        height
-      }
-      images(order_by: {width: desc}, where: { index: { _eq: 0 }, error: { _is_null: true } }, limit: 1) {
-        src
-        width
-        height
       }
     }
   }
@@ -106,10 +79,8 @@ function parseFeedEntries(raw: any[]): FeedEntry[] {
     return {
       ...entry,
       decoded,
-      // Preserve enriched relationship data
       profileArgs: entry.profileArgs || [],
       assetArgs: entry.assetArgs || [],
-      tokenArgs: entry.tokenArgs || [],
     }
   })
 }
@@ -218,10 +189,7 @@ export function extractEnrichedIdentities(entries: FeedEntry[]): Record<string, 
         identities[addr] = {
           address: addr,
           name: profile.name || undefined,
-          standard: profile.standard || undefined,
-          isEOA: profile.isEOA || false,
           profileImages: profile.profileImages || [],
-          tags: profile.tags || [],
           __gqltype: 'Profile',
         }
       }
@@ -240,10 +208,6 @@ export function extractEnrichedIdentities(entries: FeedEntry[]): Record<string, 
           lsp4TokenSymbol: asset.lsp4TokenSymbol || undefined,
           lsp4TokenType: asset.lsp4TokenType ?? undefined,
           decimals: asset.decimals ?? undefined,
-          lsp8TokenIdFormat: asset.lsp8TokenIdFormat ?? undefined,
-          isLSP7: asset.isLSP7 || false,
-          isCollection: asset.isCollection || false,
-          standard: asset.standard || undefined,
           owner_id: asset.owner_id || undefined,
           icons: asset.icons || [],
           images: asset.images || [],

@@ -15,10 +15,7 @@ export type FeedEventType =
 export interface FeedProfileInfo {
   id: string
   name?: string | null
-  standard?: string | null
-  isEOA?: boolean
   profileImages?: Array<{ src: string; width: number; height: number }>
-  tags?: string[]
 }
 
 export interface FeedAssetInfo {
@@ -28,24 +25,10 @@ export interface FeedAssetInfo {
   lsp4TokenSymbol?: string | null
   lsp4TokenType?: number | null
   decimals?: number | null
-  lsp8TokenIdFormat?: number | null
-  isLSP7?: boolean
-  isCollection?: boolean
-  standard?: string | null
   owner_id?: string | null
   icons?: Array<{ src: string; width: number; height: number }>
   images?: Array<{ src: string; width: number; height: number }>
   lsp4Creators?: Array<{ profile_id: string }>
-}
-
-export interface FeedTokenInfo {
-  id: string
-  tokenId?: string | null
-  name?: string | null
-  lsp4TokenName?: string | null
-  asset_id?: string | null
-  icons?: Array<{ src: string; width: number; height: number }>
-  images?: Array<{ src: string; width: number; height: number }>
 }
 
 // --- Decoded sub-types per eventType ---
@@ -141,5 +124,4 @@ export interface FeedEntry {
   // Enriched relationship data from expanded query
   profileArgs?: Array<{ profile: FeedProfileInfo }>
   assetArgs?: Array<{ asset: FeedAssetInfo }>
-  tokenArgs?: Array<{ token: FeedTokenInfo }>
 }
