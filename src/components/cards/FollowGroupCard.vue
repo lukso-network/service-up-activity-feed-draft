@@ -15,7 +15,7 @@
           />
           <div class="basis-full h-0 sm:hidden"></div>
           <span class="text-sm text-neutral-500 dark:text-neutral-400">
-            {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ transactions.length }} people {{ isUnfollow ? '👋' : '👤' }}
+            {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ uniqueTransactions.length }} people {{ isUnfollow ? '👋' : '👤' }}
           </span>
           <div class="flex items-center -space-x-1">
             <a
@@ -39,8 +39,8 @@
                 size="x-small"
               ></lukso-profile>
             </a>
-            <span v-if="transactions.length > 5" class="text-xs text-neutral-400 dark:text-neutral-500 ml-6 pl-2">
-              +{{ transactions.length - 5 }}
+            <span v-if="uniqueTransactions.length > 5" class="text-xs text-neutral-400 dark:text-neutral-500 ml-6 pl-2">
+              +{{ uniqueTransactions.length - 5 }}
             </span>
           </div>
         </template>
@@ -69,13 +69,13 @@
                 size="x-small"
               ></lukso-profile>
             </a>
-            <span v-if="transactions.length > 5" class="text-xs text-neutral-400 dark:text-neutral-500 ml-6 pl-2">
-              +{{ transactions.length - 5 }}
+            <span v-if="uniqueTransactions.length > 5" class="text-xs text-neutral-400 dark:text-neutral-500 ml-6 pl-2">
+              +{{ uniqueTransactions.length - 5 }}
             </span>
           </div>
           <div class="basis-full h-0 sm:hidden"></div>
           <span class="text-sm text-neutral-500 dark:text-neutral-400">
-            {{ transactions.length }} people {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ isUnfollow ? '👋' : '👤' }}
+            {{ uniqueTransactions.length }} people {{ isUnfollow ? 'unfollowed' : 'followed' }} {{ isUnfollow ? '👋' : '👤' }}
           </span>
           <div class="basis-full h-0 sm:hidden"></div>
           <ProfileBadge
@@ -105,7 +105,7 @@
     <!-- Expanded: individual follow cards -->
     <div v-if="expanded" class="mt-3 divide-y divide-neutral-100 dark:divide-neutral-850 border-t border-neutral-100 dark:border-neutral-850 nested-cards">
       <FollowCard
-        v-for="tx in transactions"
+        v-for="tx in uniqueTransactions"
         :key="tx.transactionHash"
         :tx="tx"
         :chain-id="chainId"
@@ -141,7 +141,18 @@ const props = defineProps<{
 const { getIdentity, queueResolve } = useAddressResolver()
 
 const expanded = ref(false)
-const previewTxs = computed(() => props.transactions.slice(0, 5))
+
+const uniqueTransactions = computed(() => {
+  const seen = new Set<string>()
+  return props.transactions.filter(tx => {
+    const address = props.groupType === 'same-actor' ? getTarget(tx).toLowerCase() : getActor(tx).toLowerCase()
+    if (seen.has(address)) return false
+    seen.add(address)
+    return true
+  })
+})
+
+const previewTxs = computed(() => uniqueTransactions.value.slice(0, 5))
 
 // Queue address resolution for all addresses in the group (actors + targets)
 watchEffect(() => {
