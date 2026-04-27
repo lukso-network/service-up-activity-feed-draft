@@ -28,17 +28,12 @@
           @error="onImageError"
         />
         <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-          <lukso-profile
-            v-if="addressIsEOA"
-            :profile-url="makeBlockie(address)"
+          <ProfileAvatar
+            :address="address"
+            :profile-url="addressAvatarUrl"
+            :is-e-o-a="addressIsEOA"
             size="x-large"
-          ></lukso-profile>
-          <lukso-profile
-            v-else
-            :profile-address="address"
-            has-identicon
-            size="x-large"
-          ></lukso-profile>
+          />
         </div>
       </div>
       <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-850 bg-neutral-50 dark:bg-neutral-800">
@@ -77,10 +72,12 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { isEOA as checkIsEOA, makeBlockie } from '../../lib/eoa'
+import { isEOA as checkIsEOA } from '../../lib/eoa'
+import { getIdentityAvatarUrl } from '../../lib/avatar'
 import { fetchTokenIdMetadata, type TokenAsset } from '../../lib/api'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
 import ProfileBadge from './ProfileBadge.vue'
+import ProfileAvatar from './ProfileAvatar.vue'
 
 const props = defineProps<{
   address: string
@@ -93,6 +90,7 @@ const { getIdentity, queueResolve } = useAddressResolver()
 
 const identity = computed(() => getIdentity(props.address))
 const addressIsEOA = computed(() => checkIsEOA(identity.value))
+const addressAvatarUrl = computed(() => getIdentityAvatarUrl(identity.value, 120, 140))
 
 const assetUrl = computed(() => {
   if (props.tokenId) {
@@ -146,15 +144,15 @@ const imageUrl = computed(() => {
   // Prefer per-token images (from Envio) over collection-level images
   const tm = tokenMeta.value
   if (tm) {
-    const fromTokenImages = pickImage(tm.images, 120, 140)
+    const fromTokenImages = pickImage(tm.images, 240, 320)
     if (fromTokenImages) return fromTokenImages
-    const fromTokenIcons = pickImage(tm.icons, 120, 140)
+    const fromTokenIcons = pickImage(tm.icons, 240, 320)
     if (fromTokenIcons) return fromTokenIcons
   }
   // Fallback to collection-level images from resolve API
-  const fromImages = pickImage(identity.value?.images, 120, 140)
+  const fromImages = pickImage(identity.value?.images, 240, 320)
   if (fromImages) return fromImages
-  return pickImage(identity.value?.icons, 120, 140)
+  return pickImage(identity.value?.icons, 240, 320)
 })
 
 // Detected media type for identity images (via HEAD request)

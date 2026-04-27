@@ -65,6 +65,7 @@ import { ADDRESS_RESOLUTION_KEY } from '@lukso/activity-sdk/vue'
 import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
 import { useFeedApi } from '../composables/useFeedApi'
 import { feedEntryToTransaction } from '../lib/feedAdapter'
+import { dedupeFeedTransferWrappers } from '../lib/feedDedupe'
 import { classifyTransaction } from '../lib/formatters'
 import type { Transaction } from '../lib/types'
 import TransactionList from '../components/TransactionList.vue'
@@ -128,6 +129,7 @@ const KNOWN_TX_TYPES = new Set([
   'follow', 'unfollow',
   'token_transfer', 'nft_transfer', 'value_transfer',
   'token_mint', 'nft_mint',
+  'token_burn', 'nft_burn',
   'profile_update', 'token_metadata_update',
   'permission_change',
   'create_moment',
@@ -138,7 +140,7 @@ const KNOWN_TX_TYPES = new Set([
 // Filter uses classifyTransaction on the adapted tx so action_executed entries
 // that the adapter couldn't remap to a known card type fall through as 'unknown'.
 const filteredTransactions = computed(() => {
-  const entries = feedEntries.value
+  const entries = dedupeFeedTransferWrappers(feedEntries.value)
   const adapted: Transaction[] = []
   for (const entry of entries) {
     const tx = feedEntryToTransaction(entry)

@@ -58,6 +58,67 @@
     <TimeStamp :timestamp="tx.blockTimestamp" />
   </CompactCard>
 
+  <!-- NFT Burn: extended card with NFT preview -->
+  <ExtendedCard v-else-if="isNftBurn" :tx="(tx as any)">
+    <template #header>
+      <ProfileBadge
+        :address="senderAddress"
+        :name="fromIdentity?.name"
+        :profile-url="fromProfileUrl"
+        :is-e-o-a="fromIsEOA"
+        :is-bot="fromIsBot"
+        size="x-small"
+      />
+      <div class="basis-full h-0 sm:hidden"></div>
+      <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+        burned
+        <a
+          :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+        >
+          <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+          <span>{{ tokenDisplayName }}</span>
+        </a>
+        <span v-if="transferTokenIdDisplay" class="text-neutral-400 dark:text-neutral-500">{{ transferTokenIdDisplay }}</span>
+        🔥
+      </span>
+      <TimeStamp :timestamp="tx.blockTimestamp" />
+    </template>
+    <template #content>
+      <NftPreview :address="tokenContractAddress" :chain-id="chainId" :token-id="transferTokenIdRaw" :token-id-label="transferTokenIdDisplay" />
+    </template>
+  </ExtendedCard>
+
+  <!-- Token Burn: compact card -->
+  <CompactCard v-else-if="isBurn" :tx="(tx as any)">
+    <ProfileBadge
+      :address="senderAddress"
+      :name="fromIdentity?.name"
+      :profile-url="fromProfileUrl"
+      :is-e-o-a="fromIsEOA"
+      :is-bot="fromIsBot"
+      size="x-small"
+    />
+    <div class="basis-full h-0 sm:hidden"></div>
+    <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+      burned
+      <a
+        :href="`https://universaleverything.io/asset/${tokenContractAddress}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"
+      >
+        <span>{{ tokenAmount }}</span>
+        <img v-if="tokenIconUrl" :src="tokenIconUrl" class="w-4 h-4 rounded-full" :alt="tokenDisplayName" />
+        <span>{{ tokenDisplayName }}</span>
+      </a>
+      🔥
+    </span>
+    <TimeStamp :timestamp="tx.blockTimestamp" />
+  </CompactCard>
+
   <!-- Batch transfer: multiple recipients -->
   <CompactCard v-else-if="isBatchTransfer" :tx="(tx as any)">
     <ProfileBadge
@@ -365,6 +426,8 @@ function getArgString(name: string): string {
 const txType = computed(() => classifyTransaction(props.tx).type)
 const isMint = computed(() => txType.value === 'token_mint' || txType.value === 'nft_mint')
 const isNftMint = computed(() => txType.value === 'nft_mint')
+const isBurn = computed(() => txType.value === 'token_burn' || txType.value === 'nft_burn')
+const isNftBurn = computed(() => txType.value === 'nft_burn')
 
 // Extract mint data from Transfer event log OR function args + Executed event
 const mintTransferLog = computed(() => {

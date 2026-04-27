@@ -1,5 +1,6 @@
 import type { Transaction, TransactionArg } from './types'
 import type { FeedEntry, Lsp7TransferDecoded, Lsp8TransferDecoded, LyxSentDecoded, LyxReceivedDecoded, FollowDecoded, UnfollowDecoded, DataChangedDecoded, ActionExecutedDecoded } from './feedTypes'
+import { isBurnAddress } from './formatters'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const LSP26_CONTRACT = '0xf01103e5a9909fc0dbe8166da7085e0c86ba0296'
@@ -59,6 +60,7 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
     case 'lsp7_transfer': {
       const d = decoded as Lsp7TransferDecoded
       const isMint = d.from === ZERO_ADDRESS
+      const isBurn = !isMint && isBurnAddress(d.to)
       const args: TransactionArg[] = [
         { name: 'from', internalType: 'address', type: 'address', value: d.from || '' },
         { name: 'to', internalType: 'address', type: 'address', value: d.to || '' },
@@ -70,7 +72,7 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         ...base,
         from: d.from || '',
         to: entry.address, // token contract
-        functionName: isMint ? 'mint' : 'transfer',
+        functionName: isMint ? 'mint' : isBurn ? 'burn' : 'transfer',
         standard: 'LSP7DigitalAsset',
         args,
         fromName: d.fromName,
@@ -85,6 +87,7 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
     case 'lsp8_transfer': {
       const d = decoded as Lsp8TransferDecoded
       const isMint = d.from === ZERO_ADDRESS
+      const isBurn = !isMint && isBurnAddress(d.to)
       const args: TransactionArg[] = [
         { name: 'from', internalType: 'address', type: 'address', value: d.from || '' },
         { name: 'to', internalType: 'address', type: 'address', value: d.to || '' },
@@ -96,7 +99,7 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         ...base,
         from: d.from || '',
         to: entry.address, // token contract
-        functionName: isMint ? 'mint' : 'transfer',
+        functionName: isMint ? 'mint' : isBurn ? 'burn' : 'transfer',
         standard: 'LSP8IdentifiableDigitalAsset',
         args,
         fromName: d.fromName,
@@ -193,8 +196,8 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         }
       }
 
-      // LSP7 token transfer / mint — single
-      if (innerStd === 'LSP7DigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint')) {
+      // LSP7 token transfer / mint / burn — single
+      if (innerStd === 'LSP7DigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint' || innerFn === 'burn')) {
         const fromVal = findArg('from')
         const from = typeof fromVal === 'string' ? fromVal : profile
         return {
@@ -223,8 +226,8 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
         }
       }
 
-      // LSP8 NFT transfer / mint
-      if (innerStd === 'LSP8IdentifiableDigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint')) {
+      // LSP8 NFT transfer / mint / burn
+      if (innerStd === 'LSP8IdentifiableDigitalAsset' && (innerFn === 'transfer' || innerFn === 'mint' || innerFn === 'burn')) {
         const fromVal = findArg('from')
         const from = typeof fromVal === 'string' ? fromVal : profile
         return {

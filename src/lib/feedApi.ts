@@ -6,6 +6,7 @@ const FEED_FIELDS = `
   id
   blockNumber
   transactionHash
+  transactionIndex
   logIndex
   address
   eventType
@@ -67,70 +68,136 @@ async function graphqlQuery<T>(query: string, variables: Record<string, unknown>
 
 import { JSONbigString } from '@lukso/transaction-decoder'
 
-function parseFeedEntries(raw: any[]): FeedEntry[] {
-  return raw.map((entry) => {
-    // Standardize decoded JSON parsing via JSONbigString to handle '1000n' automatically into actual BigInts
-    const decoded = typeof entry.decoded === 'string'
-      ? JSONbigString.parse(entry.decoded)
-      : typeof entry.decoded === 'object'
-        ? JSONbigString.read(entry.decoded)
-        : entry.decoded
-
-    return {
-      ...entry,
-      decoded,
-      profileArgs: entry.profileArgs || [],
-      assetArgs: entry.assetArgs || [],
+// The indexer occasionally emits unescaped control bytes (raw \n, \t, etc.) inside
+// JSON string literals — see e.g. profile bios with newlines. JSON.parse rejects
+// those, so we walk the string and escape control chars only when inside a string
+// literal. Falling through to dropping the row would stall pagination on the
+// offending cursor and spin the loading indicator forever.
+function sanitizeJsonControlChars(s: string): string {
+  let out = ''
+  let inString = false
+  let escape = false
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    const code = ch.charCodeAt(0)
+    if (escape) { out += ch; escape = false; continue }
+    if (inString && ch === '\\') { out += ch; escape = true; continue }
+    if (ch === '"') { inString = !inString; out += ch; continue }
+    if (inString && code < 0x20) {
+      if (code === 0x0a) out += '\\n'
+      else if (code === 0x0d) out += '\\r'
+      else if (code === 0x09) out += '\\t'
+      else if (code === 0x08) out += '\\b'
+      else if (code === 0x0c) out += '\\f'
+      else out += '\\u' + code.toString(16).padStart(4, '0')
+      continue
     }
-  })
+    out += ch
+  }
+  return out
+}
+
+function parseDecoded(value: unknown, entryId?: string): unknown {
+  try {
+    if (typeof value === 'string') return JSONbigString.parse(value)
+    if (typeof value === 'object' && value !== null) return JSONbigString.read(value)
+    return value
+  } catch (e) {
+    if (typeof value === 'string') {
+      try {
+        return JSONbigString.parse(sanitizeJsonControlChars(value))
+      } catch (e2) {
+        console.warn('[feedApi] decoded parse failed for', entryId, e2)
+        return undefined
+      }
+    }
+    console.warn('[feedApi] decoded parse failed for', entryId, e)
+    return undefined
+  }
+}
+
+function parseFeedEntries(raw: any[]): FeedEntry[] {
+  return raw.map((entry) => ({
+    ...entry,
+    decoded: parseDecoded(entry.decoded, entry.id),
+    profileArgs: entry.profileArgs || [],
+    assetArgs: entry.assetArgs || [],
+  }))
 }
 
 /**
- * Build cursor pagination condition for (blockNumber, logIndex) pair.
- * Returns a fragment to splice into a _and array, or empty string.
+ * Build cursor pagination condition for (blockNumber, transactionIndex, logIndex) tuple.
+ * The full tuple is required because logIndex is tx-local per the schema docstring —
+ * two txs in the same block can collide on logIndex and silently skip rows on page
+ * boundaries. Returns a fragment to splice into a _and array, or empty string.
  */
-function buildCursorCondition(beforeBlock?: number, beforeLogIndex?: number): string {
+function buildCursorCondition(
+  beforeBlock?: number,
+  beforeTransactionIndex?: number,
+  beforeLogIndex?: number,
+): string {
   if (beforeBlock == null) return ''
+  const txIdx = beforeTransactionIndex ?? 0
+  const logIdx = beforeLogIndex ?? 0
   return `, { _or: [
     { blockNumber: { _lt: ${beforeBlock} } },
-    { blockNumber: { _eq: ${beforeBlock} }, logIndex: { _lt: ${beforeLogIndex ?? 0} } }
+    { blockNumber: { _eq: ${beforeBlock} }, transactionIndex: { _lt: ${txIdx} } },
+    { blockNumber: { _eq: ${beforeBlock} }, transactionIndex: { _eq: ${txIdx} }, logIndex: { _lt: ${logIdx} } }
   ] }`
 }
 
 /**
  * Fetch paginated feed for a specific profile.
- * Uses a combined query that matches entries where the profile is either
- * the feed owner (profiles) OR a referenced participant (profileArgs),
- * eliminating the need for sequential fallback queries.
+ *
+ * The `_or` has four arms to work around indexer gaps documented in
+ * PROFILE-FEED-COVERAGE-ANALYSIS.md:
+ *  - `profiles` / `profileArgs`: the canonical relation joins (unreliable — ~32% of
+ *     lsp7_transfer rows have empty `profiles` arrays)
+ *  - `address`: catches events emitted by the UP itself (profile edits, permission
+ *     changes) that the relation arms never cover
+ *  - `decoded _cast String _ilike`: last-resort substring match over the stringified
+ *     JSON payload to recover rows where the indexer failed to write the relation
+ *     joins. `decoded` is jsonb but the indexer stores it as a stringified scalar,
+ *     so `_contains` won't work — we cast to text and ilike the raw address hex.
  */
 export async function fetchFeed(
   profileId: string,
   limit: number,
   beforeBlock?: number,
+  beforeTransactionIndex?: number,
   beforeLogIndex?: number,
 ): Promise<FeedEntry[]> {
-  const cursorCondition = buildCursorCondition(beforeBlock, beforeLogIndex)
+  const cursorCondition = buildCursorCondition(beforeBlock, beforeTransactionIndex, beforeLogIndex)
+  const lowerId = profileId.toLowerCase()
 
   const query = `
-    query ProfileFeed($profileId: String!) {
+    query ProfileFeed($profileId: String!, $profileIdPattern: String!) {
       Feed(
         limit: ${limit},
         where: {
           _and: [
             { _or: [
               { profiles: { profile_id: { _eq: $profileId } } },
-              { profileArgs: { profile_id: { _eq: $profileId } } }
+              { profileArgs: { profile_id: { _eq: $profileId } } },
+              { address: { _eq: $profileId } },
+              { decoded: { _cast: { String: { _ilike: $profileIdPattern } } } }
             ] }
             ${cursorCondition}
           ]
         },
-        order_by: [{ blockNumber: desc }, { logIndex: desc }]
+        order_by: [{ blockNumber: desc }, { transactionIndex: desc }, { logIndex: desc }]
       ) {
         ${FEED_FIELDS}
       }
     }
   `
-  const data = await graphqlQuery<{ Feed: any[] }>(query, { profileId: profileId.toLowerCase() })
+  const data = await graphqlQuery<{ Feed: any[] }>(query, {
+    profileId: lowerId,
+    // Wrap in JSON quotes so the pattern matches only exact string values in the
+    // decoded payload (e.g. `"0xabc..."`) — not substrings inside URL fragments
+    // like `https://.../#address=0xabc...` that appear in grid_updated events.
+    profileIdPattern: `%"${lowerId}"%`,
+  })
   return parseFeedEntries(data.Feed)
 }
 
@@ -140,20 +207,14 @@ export async function fetchFeed(
 export async function fetchGlobalFeed(
   limit: number,
   beforeBlock?: number,
+  beforeTransactionIndex?: number,
   beforeLogIndex?: number,
 ): Promise<FeedEntry[]> {
-  const cursorCondition = buildCursorCondition(beforeBlock, beforeLogIndex)
+  const cursorCondition = buildCursorCondition(beforeBlock, beforeTransactionIndex, beforeLogIndex)
 
-  // For global feed without cursor, skip the _and wrapper entirely
+  // For global feed without cursor, skip the where clause entirely
   const whereClause = cursorCondition
-    ? `where: {
-        _and: [
-          { _or: [
-            { blockNumber: { _lt: ${beforeBlock} } },
-            { blockNumber: { _eq: ${beforeBlock} }, logIndex: { _lt: ${beforeLogIndex ?? 0} } }
-          ] }
-        ]
-      },`
+    ? `where: { _and: [${cursorCondition.replace(/^,\s*/, '')}] },`
     : ''
 
   const query = `
@@ -161,7 +222,7 @@ export async function fetchGlobalFeed(
       Feed(
         limit: ${limit},
         ${whereClause}
-        order_by: [{ blockNumber: desc }, { logIndex: desc }]
+        order_by: [{ blockNumber: desc }, { transactionIndex: desc }, { logIndex: desc }]
       ) {
         ${FEED_FIELDS}
       }

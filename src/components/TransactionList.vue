@@ -424,6 +424,8 @@ function getCardComponent(tx: Transaction): Component {
     case 'nft_transfer':
     case 'token_mint':
     case 'nft_mint':
+    case 'token_burn':
+    case 'nft_burn':
       return TransferCard
     case 'follow':
     case 'unfollow':

@@ -62,17 +62,12 @@
               @error="onImageError"
             />
             <div v-else class="w-[140px] h-[140px] bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-              <lukso-profile
-                v-if="tokenIsEOA"
-                :profile-url="makeBlockie(tokenAddress)"
+              <ProfileAvatar
+                :address="tokenAddress"
+                :profile-url="tokenAvatarUrl"
+                :is-e-o-a="tokenIsEOA"
                 size="x-large"
-              ></lukso-profile>
-              <lukso-profile
-                v-else
-                :profile-address="tokenAddress"
-                has-identicon
-                size="x-large"
-              ></lukso-profile>
+              />
             </div>
           </div>
           <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-850 bg-neutral-50 dark:bg-neutral-800">
@@ -154,11 +149,12 @@ import { computed, ref, watch } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { shortenAddress, optimizeImageUrl } from '../../lib/formatters'
-import { isEOA as checkIsEOA, isBot as checkIsBot, makeBlockie } from '../../lib/eoa'
+import { isEOA as checkIsEOA, isBot as checkIsBot } from '../../lib/eoa'
+import { getIdentityAvatarUrl } from '../../lib/avatar'
 import { detectMediaType, detectMediaTypeFromUrl, stripQueryParams } from '../../lib/mediaType'
-import { EXECUTED_EVENT, findLogByEvent } from '../../lib/events'
 import { autoDecodeTokenId, decodeTokenId } from '../../lib/tokenId'
 import ProfileBadge from '../shared/ProfileBadge.vue'
+import ProfileAvatar from '../shared/ProfileAvatar.vue'
 import TimeStamp from '../shared/TimeStamp.vue'
 import TxDetails from '../shared/TxDetails.vue'
 
@@ -186,11 +182,7 @@ const isTokenIdUpdate = computed(() =>
   props.tx.functionName?.toLowerCase().includes('setdatafortokenid')
 )
 
-const actorAddress = computed(() => {
-  const executed = findLogByEvent(props.tx.logs, EXECUTED_EVENT)
-  if (executed?.address) return executed.address
-  return props.tx.from
-})
+const actorAddress = computed(() => props.tx.from)
 
 const tokenAddress = computed(() => props.tx.to)
 
@@ -243,6 +235,7 @@ const tokenMetadata = computed(() => {
 // ─── Collection identity (from resolve API) ───
 const collectionIdentity = computed(() => getIdentity(tokenAddress.value))
 const tokenIsEOA = computed(() => checkIsEOA(collectionIdentity.value))
+const tokenAvatarUrl = computed(() => getIdentityAvatarUrl(collectionIdentity.value, 120, 140))
 
 // ─── NFT image: per-token from metadata, or collection from resolve API ───
 const nftImageUrl = computed(() => {

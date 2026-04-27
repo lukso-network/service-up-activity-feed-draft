@@ -1,10 +1,14 @@
 import type { Transaction } from './types'
 
-/**
- * Add width parameter to universalprofile.cloud image URLs for optimized loading.
- * @param url - The image URL
- * @param renderedWidth - The rendered width in CSS pixels (will be doubled for retina)
- */
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const DEAD_ADDRESS = '0x000000000000000000000000000000000000dead'
+
+export function isBurnAddress(addr: string | undefined): boolean {
+  if (!addr) return false
+  const lower = addr.toLowerCase()
+  return lower === ZERO_ADDRESS || lower === DEAD_ADDRESS
+}
+
 export function optimizeImageUrl(url: string, renderedWidth: number): string {
   if (!url) return url
   // Only optimize universalprofile.cloud/image URLs
@@ -134,7 +138,6 @@ export function classifyTransaction(tx: Transaction): {
   }
 
   // Detect mints: by function name OR decoded Transfer event from zero address
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
   const isMintFn = fn === 'mint' || fn === 'mintbatch'
 
   // Check decoded Transfer events
@@ -152,6 +155,30 @@ export function classifyTransaction(tx: Transaction): {
       label: isNft ? 'Minted NFT' : 'Minted',
       icon: '✨',
       color: 'text-emerald-500',
+    }
+  }
+
+  // Detect burns: by function name OR Transfer event / args with to = zero/dead address
+  const isBurnFn = fn === 'burn' || fn === 'burnbatch'
+
+  const burnLog = tx.logs?.find((l: any) =>
+    l.eventName === 'Transfer' &&
+    l.args?.some((a: any) => a.name === 'to' && isBurnAddress(String(a.value)))
+  )
+
+  const hasBurnArg = tx.args?.some(a =>
+    a.name === 'to' && isBurnAddress(String(a.value ?? ''))
+  )
+
+  if (isBurnFn || burnLog || hasBurnArg) {
+    const hasTokenId = burnLog?.args?.some((a: any) => a.name === 'tokenId')
+      || tx.args?.some(a => a.name === 'tokenId')
+    const isNft = hasTokenId || standard.includes('lsp8') || standard.includes('identifiabledigitalasset')
+    return {
+      type: isNft ? 'nft_burn' : 'token_burn',
+      label: isNft ? 'Burned NFT' : 'Burned',
+      icon: '🔥',
+      color: 'text-orange-500',
     }
   }
 

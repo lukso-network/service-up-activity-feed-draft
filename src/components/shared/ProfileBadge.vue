@@ -5,18 +5,12 @@
     rel="noopener noreferrer"
     class="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer no-underline"
   >
-    <lukso-profile
-      v-if="isEOA"
-      :profile-url="blockieUrl"
+    <ProfileAvatar
+      :address="address"
+      :profile-url="profileUrl"
+      :is-e-o-a="isEOA"
       :size="size"
-    ></lukso-profile>
-    <lukso-profile
-      v-else
-      :profile-url="profileUrl || ''"
-      :profile-address="address"
-      has-identicon
-      :size="size"
-    ></lukso-profile>
+    />
     <lukso-username
       :name="name || ''"
       :address="address"
@@ -30,9 +24,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { makeBlockie } from '../../lib/eoa'
 import { useDarkMode } from '../../composables/useDarkMode'
 import BotBadge from './BotBadge.vue'
+import ProfileAvatar from './ProfileAvatar.vue'
 
 const { isDark } = useDarkMode()
 
@@ -46,10 +40,6 @@ const props = defineProps<{
   isEOA?: boolean
   isBot?: boolean
 }>()
-
-const blockieUrl = computed(() =>
-  props.isEOA && props.address ? makeBlockie(props.address) : ''
-)
 
 const nextSize = computed(() => {
   const cur = props.size || 'x-small'

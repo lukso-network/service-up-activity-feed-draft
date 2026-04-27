@@ -32,12 +32,15 @@ export function useFeedApi(
   const hasMore = ref(true)
   const enrichedIdentities = ref<Record<string, any>>({})
 
-  // Cursor state for pagination
+  // Cursor state for pagination — the full (blockNumber, transactionIndex, logIndex)
+  // tuple is required to uniquely order rows across same-block transactions.
   let cursorBlock: number | undefined
+  let cursorTransactionIndex: number | undefined
   let cursorLogIndex: number | undefined
 
   function resetCursor() {
     cursorBlock = undefined
+    cursorTransactionIndex = undefined
     cursorLogIndex = undefined
   }
 
@@ -45,6 +48,7 @@ export function useFeedApi(
     if (entries.length > 0) {
       const last = entries[entries.length - 1]
       cursorBlock = last.blockNumber
+      cursorTransactionIndex = last.transactionIndex ?? 0
       cursorLogIndex = last.logIndex
     }
   }
@@ -60,8 +64,8 @@ export function useFeedApi(
   async function fetchPage(): Promise<FeedEntry[]> {
     const id = isRef(profileId) ? profileId.value : profileId
     const entries = id
-      ? await fetchFeed(id, pageSize, cursorBlock, cursorLogIndex)
-      : await fetchGlobalFeed(pageSize, cursorBlock, cursorLogIndex)
+      ? await fetchFeed(id, pageSize, cursorBlock, cursorTransactionIndex, cursorLogIndex)
+      : await fetchGlobalFeed(pageSize, cursorBlock, cursorTransactionIndex, cursorLogIndex)
 
     if (entries.length < pageSize) {
       hasMore.value = false
@@ -102,6 +106,10 @@ export function useFeedApi(
       }
     } catch (e) {
       console.error('[useFeedApi] loadMore failed:', e)
+      // Stop pagination on failure — the cursor wasn't advanced, so without
+      // this the IntersectionObserver would loop the same failing fetch
+      // forever and never hide the spinner. User can pull-to-refresh to retry.
+      hasMore.value = false
     } finally {
       loadingMore.value = false
     }
