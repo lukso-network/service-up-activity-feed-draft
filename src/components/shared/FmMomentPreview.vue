@@ -42,7 +42,7 @@
         </div>
       </div>
       <div class="px-2 py-1.5 border-t border-neutral-200 dark:border-neutral-850 bg-neutral-50 dark:bg-neutral-800">
-        <span class="text-xs text-neutral-500 font-mono">{{ shortenAddress(address) }}</span>
+        <span class="text-xs text-neutral-500 font-mono block truncate">{{ shortenAddress(address) }}</span>
       </div>
     </div>
     <!-- Moment details -->
@@ -66,7 +66,7 @@
           />
         </div>
       </div>
-      <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+      <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">
         {{ shortenAddress(address) }}
       </span>
       <!-- LIKES count -->
