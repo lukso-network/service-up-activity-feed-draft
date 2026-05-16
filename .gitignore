@@ -3,3 +3,8 @@ dist
 *.local
 *.tsbuildinfo
 .DS_Store
+
+# Ruflo / MCP runtime artifacts
+.swarm/
+ruvector.db
+agentdb.rvf*

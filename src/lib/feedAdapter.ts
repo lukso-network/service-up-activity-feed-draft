@@ -1,6 +1,7 @@
 import type { Transaction, TransactionArg } from './types'
 import type { FeedEntry, Lsp7TransferDecoded, Lsp8TransferDecoded, LyxSentDecoded, LyxReceivedDecoded, FollowDecoded, UnfollowDecoded, DataChangedDecoded, ActionExecutedDecoded } from './feedTypes'
 import { isBurnAddress } from './formatters'
+import { readPhloxSwap } from './phlox'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const LSP26_CONTRACT = '0xf01103e5a9909fc0dbe8166da7085e0c86ba0296'
@@ -158,6 +159,20 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
 
     case 'action_executed': {
       const d = decoded as ActionExecutedDecoded
+      // Phlox swap annotation set by consolidatePhloxSwaps — short-circuit so the
+      // tx renders via the dedicated SwapCard instead of falling through to a
+      // generic value_transfer / execute classification.
+      const phloxSwap = readPhloxSwap(decoded)
+      if (phloxSwap) {
+        return {
+          ...base,
+          from: phloxSwap.actor,
+          to: phloxSwap.recipient,
+          phloxSwap,
+          // intentionally no functionName/standard — classifyTransaction picks
+          // 'phlox_swap' from the phloxSwap field
+        }
+      }
       const innerTx = (d.transaction || {}) as Record<string, unknown>
       const innerFn = String(innerTx.functionName || '')
       const innerStd = String(innerTx.standard || '')

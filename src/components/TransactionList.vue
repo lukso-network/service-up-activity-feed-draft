@@ -67,6 +67,7 @@ import MomentCard from './cards/MomentCard.vue'
 import TokenUpdateCard from './cards/TokenUpdateCard.vue'
 import FollowGroupCard from './cards/FollowGroupCard.vue'
 import TransferGroupCard from './cards/TransferGroupCard.vue'
+import SwapCard from './cards/SwapCard.vue'
 import {
   FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
   LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
@@ -438,6 +439,8 @@ function getCardComponent(tx: Transaction): Component {
       return TokenUpdateCard
     case 'permission_change':
       return PermissionCard
+    case 'phlox_swap':
+      return SwapCard
     case 'contract_execution':
       return GenericCard
     case 'unknown':

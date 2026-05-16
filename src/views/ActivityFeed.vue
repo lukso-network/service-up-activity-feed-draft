@@ -66,6 +66,7 @@ import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
 import { useFeedApi } from '../composables/useFeedApi'
 import { feedEntryToTransaction } from '../lib/feedAdapter'
 import { dedupeFeedTransferWrappers } from '../lib/feedDedupe'
+import { consolidatePhloxSwaps } from '../lib/phlox'
 import { classifyTransaction } from '../lib/formatters'
 import type { Transaction } from '../lib/types'
 import TransactionList from '../components/TransactionList.vue'
@@ -134,13 +135,20 @@ const KNOWN_TX_TYPES = new Set([
   'permission_change',
   'create_moment',
   'contract_execution',
+  'phlox_swap',
 ])
 
 // Adapt FeedEntry[] → Transaction[] for existing card components.
-// Filter uses classifyTransaction on the adapted tx so action_executed entries
-// that the adapter couldn't remap to a known card type fall through as 'unknown'.
+// Pipeline:
+//   dedupeFeedTransferWrappers   – drop action_executed wrappers whose transfers
+//                                  also exist as standalone lsp7/lsp8 rows.
+//   consolidatePhloxSwaps        – group swap legs (router/feeSplitter transfers
+//                                  + token authorize prep) into one annotated
+//                                  action_executed entry.
+//   classifyTransaction          – filter unknown types unless in dev mode.
 const filteredTransactions = computed(() => {
-  const entries = dedupeFeedTransferWrappers(feedEntries.value)
+  const deduped = dedupeFeedTransferWrappers(feedEntries.value)
+  const { entries } = consolidatePhloxSwaps(deduped)
   const adapted: Transaction[] = []
   for (const entry of entries) {
     const tx = feedEntryToTransaction(entry)

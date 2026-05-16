@@ -119,6 +119,16 @@ export function classifyTransaction(tx: Transaction): {
   icon: string
   color: string
 } {
+  // Phlox DEX swap — consolidated card showing input/output tokens.
+  if (tx.phloxSwap) {
+    return {
+      type: 'phlox_swap',
+      label: 'Swap on Phlox',
+      icon: '🔄',
+      color: 'text-cyan-500',
+    }
+  }
+
   const fn = tx.functionName?.toLowerCase() ?? ''
   const standard = tx.standard?.toLowerCase() ?? ''
   const input = tx.input?.toLowerCase() ?? '0x'

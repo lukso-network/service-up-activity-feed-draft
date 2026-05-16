@@ -50,6 +50,9 @@ export interface Transaction {
   feedTokenDecimals?: number
   feedTokenIconUrl?: string
   feedTokenImageUrl?: string
+  // Phlox swap descriptor reconstructed from related feed rows in the same tx.
+  // Present only when the tx was detected as a Phlox DEX swap; see src/lib/phlox.ts.
+  phloxSwap?: import('./phlox').PhloxSwapInfo
 }
 
 export interface ActivityResponse {
