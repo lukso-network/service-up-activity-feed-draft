@@ -135,6 +135,7 @@ const KNOWN_TX_TYPES = new Set([
   'permission_change',
   'create_moment',
   'contract_execution',
+  'stakingverse_action',
   'phlox_swap',
 ])
 

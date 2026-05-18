@@ -38,7 +38,7 @@
       </component>
       on
       <a
-        href="https://contracts.phlox.finance/"
+        href="https://phlox.social"
         target="_blank"
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200 hover:underline"

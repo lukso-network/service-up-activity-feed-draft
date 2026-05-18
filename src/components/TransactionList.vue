@@ -68,6 +68,7 @@ import TokenUpdateCard from './cards/TokenUpdateCard.vue'
 import FollowGroupCard from './cards/FollowGroupCard.vue'
 import TransferGroupCard from './cards/TransferGroupCard.vue'
 import SwapCard from './cards/SwapCard.vue'
+import StakingverseCard from './cards/StakingverseCard.vue'
 import {
   FOLLOW_EVENT, UNFOLLOW_EVENT, EXECUTED_EVENT,
   LSP26_FOLLOW_NOTIFICATION, LSP26_UNFOLLOW_NOTIFICATION,
@@ -441,6 +442,8 @@ function getCardComponent(tx: Transaction): Component {
       return PermissionCard
     case 'phlox_swap':
       return SwapCard
+    case 'stakingverse_action':
+      return StakingverseCard
     case 'contract_execution':
       return GenericCard
     case 'unknown':
