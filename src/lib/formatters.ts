@@ -276,6 +276,17 @@ export function classifyTransaction(tx: Transaction): {
     }
   }
 
+  // Stakingverse pool contracts — custom calls decoded locally from the public
+  // pool-contracts ABI selectors.
+  if (standard.includes('stakingverse')) {
+    return {
+      type: 'stakingverse_action',
+      label: fn ? `${formatFunctionName(tx.functionName)} on Stakingverse` : 'Stakingverse',
+      icon: '⚡',
+      color: 'text-indigo-500',
+    }
+  }
+
   // Pure value transfer (no calldata)
   if (value > 0n && (input === '0x' || input.length <= 10)) {
     return {

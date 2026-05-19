@@ -2,6 +2,7 @@ import type { Transaction, TransactionArg } from './types'
 import type { FeedEntry, Lsp7TransferDecoded, Lsp8TransferDecoded, LyxSentDecoded, LyxReceivedDecoded, FollowDecoded, UnfollowDecoded, DataChangedDecoded, ActionExecutedDecoded } from './feedTypes'
 import { isBurnAddress } from './formatters'
 import { readPhloxSwap } from './phlox'
+import { getStakingverseAction } from './stakingverse'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const LSP26_CONTRACT = '0xf01103e5a9909fc0dbe8166da7085e0c86ba0296'
@@ -251,6 +252,22 @@ export function feedEntryToTransaction(entry: FeedEntry): Transaction {
           to: target,
           functionName: innerFn,
           standard: 'LSP8IdentifiableDigitalAsset',
+          args: passThroughArgs,
+        }
+      }
+
+      const stakingverseAction = getStakingverseAction(target, d.selector, innerFn)
+      if (stakingverseAction) {
+        return {
+          ...base,
+          from: profile,
+          to: target,
+          value: outerValueRaw,
+          input: stakingverseAction.selector || '0x',
+          functionName: stakingverseAction.functionName,
+          sig: stakingverseAction.selector || undefined,
+          __decoder: 'Stakingverse/pool-contracts',
+          standard: stakingverseAction.standard,
           args: passThroughArgs,
         }
       }
