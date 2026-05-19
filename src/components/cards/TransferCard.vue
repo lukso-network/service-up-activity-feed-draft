@@ -503,7 +503,7 @@ const mintTokenId = computed(() => {
 const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
 
 const mintAmount = computed(() => {
-  if (props.tx.feedFormattedAmount) return props.tx.feedFormattedAmount
+  if (props.tx.feedFormattedAmount) return formatDecimalAmount(props.tx.feedFormattedAmount)
   const amountArg = mintTransferLog.value?.args?.find((a: any) => a.name === 'amount')
     || props.tx.args?.find(a => a.name === 'amount')
   if (!amountArg?.value) return '1' // NFT default
@@ -866,7 +866,7 @@ const lyxAmount = computed(() => formattedAmount.value.replace(/\s*LYX$/, ''))
 
 // Token amount: prefer feedFormattedAmount (pre-formatted by Feed API), then compute from args.amount
 const tokenAmount = computed(() => {
-  if (props.tx.feedFormattedAmount) return props.tx.feedFormattedAmount
+  if (props.tx.feedFormattedAmount) return formatDecimalAmount(props.tx.feedFormattedAmount)
   const rawAmount = getArg('amount')
   if (rawAmount == null) return ''
   // Strip BigInt 'n' suffix if present
@@ -890,6 +890,16 @@ const tokenAmount = computed(() => {
     return cleanAmount.length > 30 ? '' : cleanAmount
   }
 })
+
+function formatDecimalAmount(value: string): string {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(-?)(\d+)(\.\d+)?$/)
+  if (!match) return trimmed
+
+  const [, sign, whole, fraction = ''] = match
+  const formattedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `${sign}${formattedWhole}${fraction}`
+}
 
 // ─── Token display ───
 const tokenDisplayName = computed(() => {
