@@ -12,8 +12,10 @@
 
     <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1 flex-wrap">
       {{ actionText }}
-      <span v-if="valueDisplay" class="font-medium text-neutral-800 dark:text-neutral-200">
-        {{ valueDisplay }}
+      <span v-if="valueAmount" class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
+        {{ valueAmount }}
+        <img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />
+        <span>LYX</span>
       </span>
       on
       <a
@@ -86,5 +88,5 @@ const actionText = computed(() => {
   }
 })
 
-const valueDisplay = computed(() => formatLYX(props.tx.value || '0'))
+const valueAmount = computed(() => formatLYX(props.tx.value || '0').replace(/\s*LYX$/, ''))
 </script>

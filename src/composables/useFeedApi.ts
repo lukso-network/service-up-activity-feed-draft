@@ -1,5 +1,6 @@
 import { ref, watch, type Ref, type ComputedRef, isRef } from 'vue'
 import { fetchFeed, fetchGlobalFeed, extractEnrichedIdentities } from '../lib/feedApi'
+import { fetchStakingverseDepositEntries } from '../lib/stakingverseExplorerFeed'
 import type { FeedEntry } from '../lib/feedTypes'
 
 export interface UseFeedApiReturn {
@@ -63,14 +64,29 @@ export function useFeedApi(
 
   async function fetchPage(): Promise<FeedEntry[]> {
     const id = isRef(profileId) ? profileId.value : profileId
-    const entries = id
-      ? await fetchFeed(id, pageSize, cursorBlock, cursorTransactionIndex, cursorLogIndex)
-      : await fetchGlobalFeed(pageSize, cursorBlock, cursorTransactionIndex, cursorLogIndex)
+    const beforeBlock = cursorBlock
+    const beforeTransactionIndex = cursorTransactionIndex
+    const beforeLogIndex = cursorLogIndex
+    const feedApiEntries = id
+      ? await fetchFeed(id, pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex)
+      : await fetchGlobalFeed(pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex)
+    const lastFeedEntry = feedApiEntries[feedApiEntries.length - 1]
+    const stakingverseEntries = await fetchStakingverseDepositEntries(
+      id,
+      pageSize,
+      beforeBlock,
+      beforeTransactionIndex,
+      beforeLogIndex,
+      lastFeedEntry?.blockNumber,
+      lastFeedEntry?.transactionIndex ?? 0,
+      lastFeedEntry?.logIndex,
+    )
+    const entries = mergeAndSortEntries(feedApiEntries, stakingverseEntries)
 
-    if (entries.length < pageSize) {
+    if (feedApiEntries.length < pageSize && stakingverseEntries.length < pageSize) {
       hasMore.value = false
     }
-    updateCursor(entries)
+    updateCursor(feedApiEntries.length ? feedApiEntries : entries)
     return entries
   }
 
@@ -85,7 +101,7 @@ export function useFeedApi(
 
     try {
       const entries = await fetchPage()
-      feedEntries.value = entries
+      feedEntries.value = mergeAndSortEntries([], entries)
       mergeEnrichedIdentities(entries)
     } catch (e) {
       error.value = e instanceof Error ? e : new Error(String(e))
@@ -101,7 +117,7 @@ export function useFeedApi(
     try {
       const entries = await fetchPage()
       if (entries.length > 0) {
-        feedEntries.value = [...feedEntries.value, ...entries]
+        feedEntries.value = mergeAndSortEntries(feedEntries.value, entries)
         mergeEnrichedIdentities(entries)
       }
     } catch (e) {
@@ -139,4 +155,24 @@ export function useFeedApi(
     loadMore,
     refresh,
   }
+}
+
+function mergeAndSortEntries(primary: FeedEntry[], secondary: FeedEntry[]): FeedEntry[] {
+  const seen = new Set<string>()
+  const merged: FeedEntry[] = []
+
+  for (const entry of [...primary, ...secondary]) {
+    const key = entry.transactionHash || entry.id
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(entry)
+  }
+
+  return merged.sort((a, b) => {
+    if (b.blockNumber !== a.blockNumber) return b.blockNumber - a.blockNumber
+    if ((b.transactionIndex ?? 0) !== (a.transactionIndex ?? 0)) {
+      return (b.transactionIndex ?? 0) - (a.transactionIndex ?? 0)
+    }
+    return b.logIndex - a.logIndex
+  })
 }
