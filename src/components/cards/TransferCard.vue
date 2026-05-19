@@ -288,7 +288,13 @@
     />
     <div class="basis-full h-0 sm:hidden"></div>
     <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-      bridged <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> via
+      bridged
+      <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
+        {{ lyxAmount }}
+        <img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />
+        <span>LYX</span>
+      </span>
+      via
       <a
         :href="HYPERLANE_BRIDGE_URL"
         target="_blank"
@@ -329,7 +335,13 @@
     <!-- Action text -->
     <span class="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
       <template v-if="transferType === 'lyx'">
-        Sent <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200"><img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />{{ formattedAmount }}</span> to
+        Sent
+        <span class="inline-flex items-center gap-1 font-medium text-neutral-800 dark:text-neutral-200">
+          {{ lyxAmount }}
+          <img src="/lyx-icon.png" alt="LYX" class="w-4 h-4" />
+          <span>LYX</span>
+        </span>
+        to
       </template>
       <template v-else-if="transferType === 'lsp7'">
         Sent
@@ -491,8 +503,9 @@ const mintTokenId = computed(() => {
 const mintTokenIdentity = computed(() => mintTokenContract.value ? getIdentity(mintTokenContract.value) : undefined)
 
 const mintAmount = computed(() => {
-  if (!mintTransferLog.value) return ''
-  const amountArg = mintTransferLog.value.args?.find((a: any) => a.name === 'amount')
+  if (props.tx.feedFormattedAmount) return props.tx.feedFormattedAmount
+  const amountArg = mintTransferLog.value?.args?.find((a: any) => a.name === 'amount')
+    || props.tx.args?.find(a => a.name === 'amount')
   if (!amountArg?.value) return '1' // NFT default
   try {
     const val = BigInt(String(amountArg.value))
@@ -848,6 +861,8 @@ const formattedAmount = computed(() => {
   if (transferType.value === 'lyx') return formatLYX(props.tx.value || '0')
   return ''
 })
+
+const lyxAmount = computed(() => formattedAmount.value.replace(/\s*LYX$/, ''))
 
 // Token amount: prefer feedFormattedAmount (pre-formatted by Feed API), then compute from args.amount
 const tokenAmount = computed(() => {
