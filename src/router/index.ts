@@ -7,13 +7,24 @@ const router = createRouter({
     {
       path: '/:chainId(\\d+)/:address(0x[a-fA-F0-9]{40})',
       name: 'activity',
-      component: ActivityFeed,
+      // Temporary safety valve: profile queries currently fall back to casting and
+      // scanning decoded JSON. Remove this redirect after the profile joins have
+      // been repaired/backfilled and profile feeds use indexed relations only.
+      redirect: (to) => ({
+        name: 'global-activity',
+        params: { chainId: to.params.chainId },
+        query: to.query,
+      }),
     },
     {
       // Address only — default to LUKSO mainnet (chainId 42)
       path: '/:address(0x[a-fA-F0-9]{40})',
       name: 'activity-address',
-      redirect: (to) => `/42/${to.params.address}`,
+      redirect: (to) => ({
+        name: 'global-activity',
+        params: { chainId: '42' },
+        query: to.query,
+      }),
     },
     {
       path: '/:chainId(\\d+)',
@@ -28,17 +39,27 @@ const router = createRouter({
   ],
 })
 
-// Migrate old hash-based URLs (/#/42/0x...) to history mode (/42/0x...)
+// Migrate old hash-based profile URLs directly to the chain's global feed while
+// profile-specific feeds are temporarily disabled.
 router.beforeEach((to, _from, next) => {
   if (to.hash && to.hash.length > 1) {
     // e.g. hash = "#42/0x..." or "#/42/0x..."
     let hashPath = to.hash.slice(1) // remove #
     if (hashPath.startsWith('/')) hashPath = hashPath.slice(1)
-    if (/^\d+\/0x[a-fA-F0-9]{40}$/.test(hashPath)) {
-      return next('/' + hashPath)
+    const chainProfileMatch = hashPath.match(/^(\d+)\/0x[a-fA-F0-9]{40}$/)
+    if (chainProfileMatch) {
+      return next({
+        name: 'global-activity',
+        params: { chainId: chainProfileMatch[1] },
+        query: to.query,
+      })
     }
     if (/^0x[a-fA-F0-9]{40}$/.test(hashPath)) {
-      return next('/42/' + hashPath)
+      return next({
+        name: 'global-activity',
+        params: { chainId: '42' },
+        query: to.query,
+      })
     }
   }
   next()
