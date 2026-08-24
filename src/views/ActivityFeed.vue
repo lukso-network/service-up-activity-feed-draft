@@ -59,11 +59,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect, onMounted, onUnmounted, provide } from 'vue'
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import { ADDRESS_RESOLUTION_KEY } from '@lukso/activity-sdk/vue'
 import { AddressResolutionStore } from '@lukso/activity-sdk/address-resolution'
 import { useFeedApi } from '../composables/useFeedApi'
+import { DEFAULT_CHAIN_ID, normalizeChainId } from '../lib/chains'
 import { feedEntryToTransaction } from '../lib/feedAdapter'
 import { dedupeFeedTransferWrappers } from '../lib/feedDedupe'
 import { consolidatePhloxSwaps } from '../lib/phlox'
@@ -75,13 +76,14 @@ import ErrorState from '../components/ErrorState.vue'
 
 const route = useRoute()
 
-const chainId = computed(() => parseInt(route.params.chainId as string) || 42)
+const chainId = computed(() => normalizeChainId(parseInt(route.params.chainId as string) || DEFAULT_CHAIN_ID))
 const address = computed(() => ((route.params.address as string) || '').toLowerCase())
 
 const devMode = computed(() => route.query.devmode !== undefined)
 
 // --- Feed API composable (replaces SDK) ---
-// Pass the computed ref so it reacts to route changes
+// Pass the computed refs so the feed reacts to route changes — including the chain,
+// which selects the mainnet vs testnet indexer endpoint.
 const profileIdRef = computed(() => address.value || undefined)
 const {
   feedEntries,
@@ -92,19 +94,32 @@ const {
   loadMore,
   refresh,
   enrichedIdentities,
-} = useFeedApi(profileIdRef)
+} = useFeedApi(profileIdRef, 25, chainId)
 
 // --- Address resolution (re-uses SDK's store + provides context for card components) ---
 // Enriched identities from the feed query are merged with the store's resolved addresses,
 // giving cards immediate access to profile names, token icons, etc. without waiting
 // for separate resolution API calls.
 const ADDRESS_RESOLUTION_BASE = 'https://feed.api.universalprofile.cloud'
-const addressStore = new AddressResolutionStore({
-  chainId: 42,
-  baseUrl: ADDRESS_RESOLUTION_BASE,
-})
 const storeAddresses = ref<Record<string, any>>({})
-addressStore.subscribe((resolved) => { storeAddresses.value = resolved })
+let addressStore: AddressResolutionStore | undefined
+let unsubscribeAddressStore: (() => void) | undefined
+
+function resetAddressStore(nextChainId: number) {
+  unsubscribeAddressStore?.()
+  addressStore?.destroy()
+  storeAddresses.value = {}
+
+  addressStore = new AddressResolutionStore({
+    chainId: nextChainId,
+    baseUrl: ADDRESS_RESOLUTION_BASE,
+  })
+  unsubscribeAddressStore = addressStore.subscribe((resolved) => {
+    storeAddresses.value = resolved
+  })
+}
+
+watch(chainId, resetAddressStore, { immediate: true })
 
 // Merge enriched data (pre-loaded from feed query) with store-resolved addresses.
 // Store data takes precedence as it may be more complete.
@@ -115,11 +130,14 @@ const resolvedAddresses = computed(() => ({
 
 provide(ADDRESS_RESOLUTION_KEY as any, {
   resolvedAddresses,
-  requestResolution: (key: any) => addressStore.requestResolution(key),
-  isResolving: (key: any) => addressStore.isResolving(key),
+  requestResolution: (key: any) => addressStore?.requestResolution(key),
+  isResolving: (key: any) => addressStore?.isResolving(key) ?? false,
 })
 onMounted(() => { /* store starts resolving on first requestResolution call */ })
-onUnmounted(() => { addressStore.destroy() })
+onUnmounted(() => {
+  unsubscribeAddressStore?.()
+  addressStore?.destroy()
+})
 
 const initialLoading = ref(false) // Feed API handles initial load internally
 
@@ -241,7 +259,14 @@ async function onTouchEnd() {
 
 // --- Auto-poll for new entries (per-profile feeds only) ---
 let _pollTimer: ReturnType<typeof setInterval> | null = null
-if (address.value) {
+
+watch(address, (profileAddress) => {
+  if (_pollTimer) {
+    clearInterval(_pollTimer)
+    _pollTimer = null
+  }
+  if (!profileAddress) return
+
   _pollTimer = setInterval(async () => {
     try {
       await refresh()
@@ -249,7 +274,7 @@ if (address.value) {
       console.warn('[auto-poll] error:', e)
     }
   }, 60_000)
-}
+}, { immediate: true })
 
 onUnmounted(() => {
   if (_pollTimer) clearInterval(_pollTimer)

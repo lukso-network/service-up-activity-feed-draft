@@ -1,6 +1,7 @@
 import { ref, watch, type Ref, type ComputedRef, isRef } from 'vue'
 import { fetchFeed, fetchGlobalFeed, extractEnrichedIdentities } from '../lib/feedApi'
 import { fetchStakingverseDepositEntries } from '../lib/stakingverseExplorerFeed'
+import { DEFAULT_CHAIN_ID, LUKSO_MAINNET_CHAIN_ID } from '../lib/chains'
 import type { FeedEntry } from '../lib/feedTypes'
 
 export interface UseFeedApiReturn {
@@ -21,10 +22,12 @@ export interface UseFeedApiReturn {
  *
  * @param profileId - Profile address (string, Ref<string>, or undefined for global feed)
  * @param pageSize - Number of entries per page (default 25)
+ * @param chainId - LUKSO chain id selecting the indexer endpoint (default mainnet)
  */
 export function useFeedApi(
   profileId?: string | Ref<string | undefined> | ComputedRef<string | undefined>,
   pageSize: number = 25,
+  chainId?: number | Ref<number> | ComputedRef<number>,
 ): UseFeedApiReturn {
   const feedEntries = ref<FeedEntry[]>([])
   const loading = ref(true)
@@ -38,16 +41,19 @@ export function useFeedApi(
   let cursorBlock: number | undefined
   let cursorTransactionIndex: number | undefined
   let cursorLogIndex: number | undefined
+  let generation = 0
+  let newestPageLoading = false
 
-  function resetCursor() {
-    cursorBlock = undefined
-    cursorTransactionIndex = undefined
-    cursorLogIndex = undefined
+  interface FeedPage {
+    entries: FeedEntry[]
+    hasMore: boolean
+    cursorEntry?: FeedEntry
   }
 
-  function updateCursor(entries: FeedEntry[]) {
-    if (entries.length > 0) {
-      const last = entries[entries.length - 1]
+  function applyPageState(page: FeedPage) {
+    hasMore.value = page.hasMore
+    if (page.cursorEntry) {
+      const last = page.cursorEntry
       cursorBlock = last.blockNumber
       cursorTransactionIndex = last.transactionIndex ?? 0
       cursorLogIndex = last.logIndex
@@ -62,85 +68,116 @@ export function useFeedApi(
     }
   }
 
-  async function fetchPage(): Promise<FeedEntry[]> {
+  async function fetchPage(
+    beforeBlock?: number,
+    beforeTransactionIndex?: number,
+    beforeLogIndex?: number,
+  ): Promise<FeedPage> {
     const id = isRef(profileId) ? profileId.value : profileId
-    const beforeBlock = cursorBlock
-    const beforeTransactionIndex = cursorTransactionIndex
-    const beforeLogIndex = cursorLogIndex
+    const chain = (isRef(chainId) ? chainId.value : chainId) ?? DEFAULT_CHAIN_ID
     const feedApiEntries = id
-      ? await fetchFeed(id, pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex)
-      : await fetchGlobalFeed(pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex)
+      ? await fetchFeed(id, pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex, chain)
+      : await fetchGlobalFeed(pageSize, beforeBlock, beforeTransactionIndex, beforeLogIndex, chain)
     const lastFeedEntry = feedApiEntries[feedApiEntries.length - 1]
-    const stakingverseEntries = await fetchStakingverseDepositEntries(
-      id,
-      pageSize,
-      beforeBlock,
-      beforeTransactionIndex,
-      beforeLogIndex,
-      lastFeedEntry?.blockNumber,
-      lastFeedEntry?.transactionIndex ?? 0,
-      lastFeedEntry?.logIndex,
-    )
+    // The Stakingverse supplement is mainnet-only — both the explorer base URL and
+    // the vault address it filters on are mainnet, so running it on another chain
+    // would splice mainnet deposits into that chain's feed.
+    const stakingverseEntries = chain === LUKSO_MAINNET_CHAIN_ID
+      ? await fetchStakingverseDepositEntries(
+          id,
+          pageSize,
+          beforeBlock,
+          beforeTransactionIndex,
+          beforeLogIndex,
+          lastFeedEntry?.blockNumber,
+          lastFeedEntry?.transactionIndex ?? 0,
+          lastFeedEntry?.logIndex,
+        )
+      : []
     const entries = mergeAndSortEntries(feedApiEntries, stakingverseEntries)
 
-    if (feedApiEntries.length < pageSize && stakingverseEntries.length < pageSize) {
-      hasMore.value = false
+    const cursorEntries = feedApiEntries.length ? feedApiEntries : entries
+    return {
+      entries,
+      hasMore: feedApiEntries.length >= pageSize || stakingverseEntries.length >= pageSize,
+      cursorEntry: cursorEntries[cursorEntries.length - 1],
     }
-    updateCursor(feedApiEntries.length ? feedApiEntries : entries)
-    return entries
   }
 
-  // Load initial page
-  async function load() {
-    resetCursor()
+  // Load the newest page. Refreshes preserve the current list until the replacement
+  // page is ready, avoiding a loading flash and scroll-position loss during polling.
+  async function load(preserveEntries = false) {
+    const requestGeneration = ++generation
+    newestPageLoading = true
+    loadingMore.value = false
     hasMore.value = true
-    loading.value = true
+    loading.value = !preserveEntries
     error.value = null
-    feedEntries.value = []
-    enrichedIdentities.value = {}
+    if (!preserveEntries) {
+      feedEntries.value = []
+      enrichedIdentities.value = {}
+    }
 
     try {
-      const entries = await fetchPage()
-      feedEntries.value = mergeAndSortEntries([], entries)
-      mergeEnrichedIdentities(entries)
+      const page = await fetchPage()
+      if (requestGeneration !== generation) return
+
+      cursorBlock = undefined
+      cursorTransactionIndex = undefined
+      cursorLogIndex = undefined
+      applyPageState(page)
+      feedEntries.value = mergeAndSortEntries([], page.entries)
+      enrichedIdentities.value = {}
+      mergeEnrichedIdentities(page.entries)
     } catch (e) {
+      if (requestGeneration !== generation) return
       error.value = e instanceof Error ? e : new Error(String(e))
       console.error('[useFeedApi] load failed:', e)
     } finally {
-      loading.value = false
+      if (requestGeneration === generation) {
+        newestPageLoading = false
+        loading.value = false
+      }
     }
   }
 
   async function loadMore() {
-    if (loadingMore.value || !hasMore.value || loading.value) return
+    if (loadingMore.value || newestPageLoading || !hasMore.value || loading.value) return
+    const requestGeneration = generation
     loadingMore.value = true
     try {
-      const entries = await fetchPage()
-      if (entries.length > 0) {
-        feedEntries.value = mergeAndSortEntries(feedEntries.value, entries)
-        mergeEnrichedIdentities(entries)
+      const page = await fetchPage(cursorBlock, cursorTransactionIndex, cursorLogIndex)
+      if (requestGeneration !== generation) return
+
+      applyPageState(page)
+      if (page.entries.length > 0) {
+        feedEntries.value = mergeAndSortEntries(feedEntries.value, page.entries)
+        mergeEnrichedIdentities(page.entries)
       }
     } catch (e) {
+      if (requestGeneration !== generation) return
       console.error('[useFeedApi] loadMore failed:', e)
       // Stop pagination on failure — the cursor wasn't advanced, so without
       // this the IntersectionObserver would loop the same failing fetch
       // forever and never hide the spinner. User can pull-to-refresh to retry.
       hasMore.value = false
     } finally {
-      loadingMore.value = false
+      if (requestGeneration === generation) loadingMore.value = false
     }
   }
 
   async function refresh() {
-    await load()
+    await load(true)
   }
 
   // Initial load
   load()
 
-  // Watch for profileId changes if it's a ref
-  if (isRef(profileId)) {
-    watch(profileId, () => {
+  // Reload when the profile or the chain changes — the profile selects a different
+  // feed, the chain selects both a different feed and a different indexer endpoint.
+  const reactiveSources = [profileId, chainId].filter(isRef)
+  if (reactiveSources.length > 0) {
+    watch(reactiveSources, () => {
       load()
     })
   }

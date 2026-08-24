@@ -1,6 +1,5 @@
 import type { FeedEntry } from './feedTypes'
-
-const FEED_API_URL = 'https://envio.lukso-mainnet.universal.tech/v1/graphql'
+import { feedApiUrl } from './chains'
 
 const FEED_FIELDS = `
   id
@@ -50,8 +49,12 @@ const FEED_FIELDS = `
   }
 `
 
-async function graphqlQuery<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-  const res = await fetch(FEED_API_URL, {
+async function graphqlQuery<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  chainId?: number,
+): Promise<T> {
+  const res = await fetch(feedApiUrl(chainId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
@@ -126,10 +129,12 @@ function parseFeedEntries(raw: any[]): FeedEntry[] {
 }
 
 /**
- * Build cursor pagination condition for (blockNumber, transactionIndex, logIndex) tuple.
- * The full tuple is required because logIndex is tx-local per the schema docstring —
- * two txs in the same block can collide on logIndex and silently skip rows on page
- * boundaries. Returns a fragment to splice into a _and array, or empty string.
+ * Build the global feed's cursor condition for the (blockNumber, transactionIndex,
+ * logIndex) tuple. The full tuple is required because logIndex is tx-local per the
+ * schema docstring — two txs in the same block can collide on logIndex and silently
+ * skip rows on page boundaries. Returns a fragment to splice into a _and array, or
+ * empty string. Profile feeds pass the same tuple to `profile_feed` instead, which
+ * applies the comparison inside the indexed function.
  */
 function buildCursorCondition(
   beforeBlock?: number,
@@ -149,16 +154,14 @@ function buildCursorCondition(
 /**
  * Fetch paginated feed for a specific profile.
  *
- * The `_or` has four arms to work around indexer gaps documented in
- * PROFILE-FEED-COVERAGE-ANALYSIS.md:
- *  - `profiles` / `profileArgs`: the canonical relation joins (unreliable — ~32% of
- *     lsp7_transfer rows have empty `profiles` arrays)
- *  - `address`: catches events emitted by the UP itself (profile edits, permission
- *     changes) that the relation arms never cover
- *  - `decoded _cast String _ilike`: last-resort substring match over the stringified
- *     JSON payload to recover rows where the indexer failed to write the relation
- *     joins. `decoded` is jsonb but the indexer stores it as a stringified scalar,
- *     so `_contains` won't work — we cast to text and ilike the raw address hex.
+ * Backed by the indexer's `profile_feed` Postgres function, which resolves profile
+ * membership through indexed relations and returns plain Feed rows already ordered
+ * by (blockNumber, transactionIndex, logIndex) descending. This replaces the old
+ * four-arm `_or` where-clause, whose `decoded _cast String _ilike` arm did an
+ * unindexed substring scan over every stringified JSON payload.
+ *
+ * All five function args are nullable; omitting the cursor returns the newest page.
+ * `p_limit` is clamped server-side.
  */
 export async function fetchFeed(
   profileId: string,
@@ -166,39 +169,44 @@ export async function fetchFeed(
   beforeBlock?: number,
   beforeTransactionIndex?: number,
   beforeLogIndex?: number,
+  chainId?: number,
 ): Promise<FeedEntry[]> {
-  const cursorCondition = buildCursorCondition(beforeBlock, beforeTransactionIndex, beforeLogIndex)
-  const lowerId = profileId.toLowerCase()
-
   const query = `
-    query ProfileFeed($profileId: String!, $profileIdPattern: String!) {
-      Feed(
-        limit: ${limit},
-        where: {
-          _and: [
-            { _or: [
-              { profiles: { profile_id: { _eq: $profileId } } },
-              { profileArgs: { profile_id: { _eq: $profileId } } },
-              { address: { _eq: $profileId } },
-              { decoded: { _cast: { String: { _ilike: $profileIdPattern } } } }
-            ] }
-            ${cursorCondition}
-          ]
-        },
-        order_by: [{ blockNumber: desc }, { transactionIndex: desc }, { logIndex: desc }]
+    query ProfileFeed(
+      $profileId: String!
+      $limit: Int!
+      $beforeBlock: Int
+      $beforeTransactionIndex: Int
+      $beforeLogIndex: Int
+    ) {
+      profile_feed(
+        args: {
+          p_profile: $profileId
+          p_limit: $limit
+          p_before_block: $beforeBlock
+          p_before_tx: $beforeTransactionIndex
+          p_before_log: $beforeLogIndex
+        }
       ) {
         ${FEED_FIELDS}
       }
     }
   `
-  const data = await graphqlQuery<{ Feed: any[] }>(query, {
-    profileId: lowerId,
-    // Wrap in JSON quotes so the pattern matches only exact string values in the
-    // decoded payload (e.g. `"0xabc..."`) — not substrings inside URL fragments
-    // like `https://.../#address=0xabc...` that appear in grid_updated events.
-    profileIdPattern: `%"${lowerId}"%`,
-  })
-  return parseFeedEntries(data.Feed)
+  const data = await graphqlQuery<{ profile_feed: any[] }>(
+    query,
+    {
+      profileId: profileId.toLowerCase(),
+      limit,
+      // Null cursor args mean "start at the newest row". The tx/log components only
+      // carry meaning alongside a block, so they stay null on the first page and
+      // default to 0 afterwards — matching buildCursorCondition's global-feed tuple.
+      beforeBlock: beforeBlock ?? null,
+      beforeTransactionIndex: beforeBlock == null ? null : beforeTransactionIndex ?? 0,
+      beforeLogIndex: beforeBlock == null ? null : beforeLogIndex ?? 0,
+    },
+    chainId,
+  )
+  return parseFeedEntries(data.profile_feed)
 }
 
 /**
@@ -209,6 +217,7 @@ export async function fetchGlobalFeed(
   beforeBlock?: number,
   beforeTransactionIndex?: number,
   beforeLogIndex?: number,
+  chainId?: number,
 ): Promise<FeedEntry[]> {
   const cursorCondition = buildCursorCondition(beforeBlock, beforeTransactionIndex, beforeLogIndex)
 
@@ -228,7 +237,7 @@ export async function fetchGlobalFeed(
       }
     }
   `
-  const data = await graphqlQuery<{ Feed: any[] }>(query, {})
+  const data = await graphqlQuery<{ Feed: any[] }>(query, {}, chainId)
   return parseFeedEntries(data.Feed)
 }
 

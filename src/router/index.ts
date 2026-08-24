@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ActivityFeed from '../views/ActivityFeed.vue'
+import { DEFAULT_CHAIN_ID } from '../lib/chains'
+
+const PROFILE_ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,22 +10,15 @@ const router = createRouter({
     {
       path: '/:chainId(\\d+)/:address(0x[a-fA-F0-9]{40})',
       name: 'activity',
-      // Temporary safety valve: profile queries currently fall back to casting and
-      // scanning decoded JSON. Remove this redirect after the profile joins have
-      // been repaired/backfilled and profile feeds use indexed relations only.
-      redirect: (to) => ({
-        name: 'global-activity',
-        params: { chainId: to.params.chainId },
-        query: to.query,
-      }),
+      component: ActivityFeed,
     },
     {
       // Address only — default to LUKSO mainnet (chainId 42)
       path: '/:address(0x[a-fA-F0-9]{40})',
       name: 'activity-address',
       redirect: (to) => ({
-        name: 'global-activity',
-        params: { chainId: '42' },
+        name: 'activity',
+        params: { chainId: String(DEFAULT_CHAIN_ID), address: to.params.address },
         query: to.query,
       }),
     },
@@ -39,25 +35,24 @@ const router = createRouter({
   ],
 })
 
-// Migrate old hash-based profile URLs directly to the chain's global feed while
-// profile-specific feeds are temporarily disabled.
+// Migrate old hash-based URLs (/#/42/0x...) to history mode (/42/0x...)
 router.beforeEach((to, _from, next) => {
   if (to.hash && to.hash.length > 1) {
     // e.g. hash = "#42/0x..." or "#/42/0x..."
     let hashPath = to.hash.slice(1) // remove #
     if (hashPath.startsWith('/')) hashPath = hashPath.slice(1)
-    const chainProfileMatch = hashPath.match(/^(\d+)\/0x[a-fA-F0-9]{40}$/)
+    const chainProfileMatch = hashPath.match(/^(\d+)\/(0x[a-fA-F0-9]{40})$/)
     if (chainProfileMatch) {
       return next({
-        name: 'global-activity',
-        params: { chainId: chainProfileMatch[1] },
+        name: 'activity',
+        params: { chainId: chainProfileMatch[1], address: chainProfileMatch[2] },
         query: to.query,
       })
     }
-    if (/^0x[a-fA-F0-9]{40}$/.test(hashPath)) {
+    if (PROFILE_ADDRESS_PATTERN.test(hashPath)) {
       return next({
-        name: 'global-activity',
-        params: { chainId: '42' },
+        name: 'activity',
+        params: { chainId: String(DEFAULT_CHAIN_ID), address: hashPath },
         query: to.query,
       })
     }
