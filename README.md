@@ -6,7 +6,7 @@ Built with Vue 3, TypeScript, Tailwind CSS, and the [`@lukso/activity-sdk`](http
 
 ## Prerequisites
 
-- **Node.js** ≥ 18
+- **Node.js** 22.23.4 or a newer patched 22.x release
 - **npm** ≥ 9
 
 You need a read token for private `@lukso` npm packages. Set it in your environment:
