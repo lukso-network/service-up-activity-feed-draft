@@ -20,6 +20,13 @@
           :transactions="item.transactions!"
           :chain-id="chainId"
         />
+        <!-- Repeated token mint / transfer / burn group -->
+        <TokenActivityGroupCard
+          v-else-if="item.type === 'token-group'"
+          :transactions="item.transactions!"
+          :chain-id="chainId"
+          :signature="item.tokenSignature!"
+        />
         <!-- Regular transaction -->
         <component
           v-else
@@ -67,6 +74,7 @@ import MomentCard from './cards/MomentCard.vue'
 import TokenUpdateCard from './cards/TokenUpdateCard.vue'
 import FollowGroupCard from './cards/FollowGroupCard.vue'
 import TransferGroupCard from './cards/TransferGroupCard.vue'
+import TokenActivityGroupCard from './cards/TokenActivityGroupCard.vue'
 import SwapCard from './cards/SwapCard.vue'
 import StakingverseCard from './cards/StakingverseCard.vue'
 import {
@@ -75,6 +83,10 @@ import {
   findLogByEvent, decodeAddressPairFromData,
   findURByTypeId, getAddressFromURReceivedData
 } from '../lib/events'
+import type { TokenActivitySignature } from '../lib/tokenActivityGroup'
+import {
+  getTokenActivitySignature, isSameTokenActivity, TOKEN_GROUP_MAX_GAP_SECONDS
+} from '../lib/tokenActivityGroup'
 
 const props = defineProps<{
   transactions: Transaction[]
@@ -263,12 +275,13 @@ function getFollowTarget(tx: Transaction): string {
 
 type DisplayItem = {
   key: string
-  type: 'tx' | 'follow-group' | 'transfer-group'
+  type: 'tx' | 'follow-group' | 'transfer-group' | 'token-group'
   tx?: Transaction & { _virtualKey?: string }
   transactions?: Transaction[]
   groupType?: 'same-actor' | 'same-target'
   sharedAddress?: string
   isUnfollow?: boolean
+  tokenSignature?: TokenActivitySignature
 }
 
 const displayItems = computed<DisplayItem[]>(() => {
@@ -408,6 +421,38 @@ const displayItems = computed<DisplayItem[]>(() => {
         })
       } else {
         items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
+      }
+      i = j
+    } else if (getTokenActivitySignature(tx, type)) {
+      // Group bursts of the same mint/transfer/burn (same actor, receiver and token)
+      // where each action follows the previous one within a short time window
+      const signature = getTokenActivitySignature(tx, type)!
+      const run: (Transaction & { _virtualKey?: string })[] = [tx]
+      let j = i + 1
+      while (j < txs.length) {
+        const next = txs[j]
+        const nextSignature = getTokenActivitySignature(next, classifyTransaction(next).type)
+        const gap = Math.abs(run[run.length - 1].blockTimestamp - next.blockTimestamp)
+        if (nextSignature && isSameTokenActivity(signature, nextSignature) && gap <= TOKEN_GROUP_MAX_GAP_SECONDS) {
+          run.push(next)
+          j++
+        } else {
+          break
+        }
+      }
+
+      if (run.length >= 2) {
+        // Key on the oldest item — new matching actions arrive at the top on refresh,
+        // so the group keeps its identity (and expanded state) while it grows
+        const oldest = run[run.length - 1]
+        items.push({
+          key: `token-group-${oldest._virtualKey || oldest.transactionHash}`,
+          type: 'token-group',
+          transactions: run,
+          tokenSignature: signature,
+        })
+      } else {
+        items.push({ key: tx._virtualKey || tx.transactionHash, type: 'tx', tx })
       }
       i = j
     } else {
