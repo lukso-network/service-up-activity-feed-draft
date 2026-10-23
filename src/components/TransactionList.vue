@@ -125,6 +125,11 @@ onMounted(() => {
 
   // Backup: scroll listener for when IntersectionObserver misses
   window.addEventListener('scroll', onScroll, { passive: true })
+
+  // In a cross-origin iframe below the parent's fold, Chrome reports the sentinel
+  // as not intersecting, so fill the iframe ourselves (against its own innerHeight).
+  // Deferred: the sentinel only exists once hasMore is true.
+  setTimeout(checkSentinelVisible, 50)
 })
 
 function onScroll() {
