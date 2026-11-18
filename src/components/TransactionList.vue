@@ -84,6 +84,7 @@ import {
   findURByTypeId, getAddressFromURReceivedData
 } from '../lib/events'
 import type { TokenActivitySignature } from '../lib/tokenActivityGroup'
+import { createStableKeyAssigner } from '../lib/displayKeys'
 import {
   getTokenActivitySignature, isSameTokenActivity, TOKEN_GROUP_MAX_GAP_SECONDS
 } from '../lib/tokenActivityGroup'
@@ -278,6 +279,20 @@ function getFollowTarget(tx: Transaction): string {
   return (tx.to || '').toLowerCase()
 }
 
+function itemKey(tx: Transaction & { _virtualKey?: string }): string {
+  return tx._virtualKey || tx.transactionHash
+}
+
+// Keys carry over between renders so groups grow in place (see displayKeys.ts).
+const assignStableKeys = createStableKeyAssigner()
+
+function displayItemMembers(item: DisplayItem): (Transaction & { _virtualKey?: string })[] {
+  if (item.transactions?.length) return item.transactions
+  const grouped = (item.tx as any)?._groupTxs as Transaction[] | undefined
+  if (grouped?.length) return grouped
+  return item.tx ? [item.tx] : []
+}
+
 type DisplayItem = {
   key: string
   type: 'tx' | 'follow-group' | 'transfer-group' | 'token-group'
@@ -331,7 +346,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         // Pick the larger sub-group (prefer actor grouping)
         if (actorGroupLen >= 2 && actorGroupLen >= targetGroupLen) {
           items.push({
-            key: `follow-group-${run[r].transactionHash}`,
+            key: itemKey(run[end - 1]),
             type: 'follow-group',
             transactions: run.slice(r, end),
             groupType: 'same-actor',
@@ -341,7 +356,7 @@ const displayItems = computed<DisplayItem[]>(() => {
           r = end
         } else if (targetGroupLen >= 2) {
           items.push({
-            key: `follow-group-${run[r].transactionHash}`,
+            key: itemKey(run[endT - 1]),
             type: 'follow-group',
             transactions: run.slice(r, endT),
             groupType: 'same-target',
@@ -352,7 +367,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         } else {
           // Single follow, no group
           const t = run[r]
-          items.push({ key: (t as any)._virtualKey || t.transactionHash, type: 'tx', tx: t })
+          items.push({ key: itemKey(t), type: 'tx', tx: t })
           r++
         }
       }
@@ -376,9 +391,9 @@ const displayItems = computed<DisplayItem[]>(() => {
       if (run.length >= 2) {
         // Collapse into single card — attach all grouped txs for pagination
         const representative = { ...run[0], _groupCount: run.length, _groupTxs: run } as any
-        items.push({ key: run[0].transactionHash, type: 'tx', tx: representative })
+        items.push({ key: itemKey(run[run.length - 1]), type: 'tx', tx: representative })
       } else {
-        items.push({ key: tx.transactionHash, type: 'tx', tx })
+        items.push({ key: itemKey(tx), type: 'tx', tx })
       }
       i = j
     } else if (type === 'token_metadata_update') {
@@ -399,9 +414,9 @@ const displayItems = computed<DisplayItem[]>(() => {
 
       if (run.length >= 2) {
         const representative = { ...run[0], _groupCount: run.length, _groupTxs: run } as any
-        items.push({ key: run[0].transactionHash, type: 'tx', tx: representative })
+        items.push({ key: itemKey(run[run.length - 1]), type: 'tx', tx: representative })
       } else {
-        items.push({ key: tx.transactionHash, type: 'tx', tx })
+        items.push({ key: itemKey(tx), type: 'tx', tx })
       }
       i = j
     } else if (type === 'value_transfer') {
@@ -420,12 +435,12 @@ const displayItems = computed<DisplayItem[]>(() => {
 
       if (run.length >= 2) {
         items.push({
-          key: `transfer-group-${run[0].transactionHash}`,
+          key: itemKey(run[run.length - 1]),
           type: 'transfer-group',
           transactions: run,
         })
       } else {
-        items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
+        items.push({ key: itemKey(tx), type: 'tx', tx })
       }
       i = j
     } else if (getTokenActivitySignature(tx, type)) {
@@ -447,25 +462,23 @@ const displayItems = computed<DisplayItem[]>(() => {
       }
 
       if (run.length >= 2) {
-        // Key on the oldest item — new matching actions arrive at the top on refresh,
-        // so the group keeps its identity (and expanded state) while it grows
-        const oldest = run[run.length - 1]
+        // Key on the oldest item (see itemKey) so the group grows in place
         items.push({
-          key: `token-group-${oldest._virtualKey || oldest.transactionHash}`,
+          key: itemKey(run[run.length - 1]),
           type: 'token-group',
           transactions: run,
           tokenSignature: signature,
         })
       } else {
-        items.push({ key: tx._virtualKey || tx.transactionHash, type: 'tx', tx })
+        items.push({ key: itemKey(tx), type: 'tx', tx })
       }
       i = j
     } else {
-      items.push({ key: (tx as any)._virtualKey || tx.transactionHash, type: 'tx', tx })
+      items.push({ key: itemKey(tx), type: 'tx', tx })
       i++
     }
   }
-  return items
+  return assignStableKeys(items.map(item => ({ ...item, memberKeys: displayItemMembers(item).map(itemKey) })))
 })
 
 function getCardComponent(tx: Transaction): Component {
@@ -514,5 +527,14 @@ function getCardComponent(tx: Transaction): Component {
 }
 .tx-list-move {
   transition: transform 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tx-list-enter-active,
+  .tx-list-move {
+    transition: opacity 0.2s ease-out;
+  }
+  .tx-list-enter-from {
+    transform: none;
+  }
 }
 </style>

@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watch, watchEffect } from 'vue'
 import type { Transaction } from '../../lib/types'
 import { useAddressResolver } from '../../composables/useAddressResolver'
 import { optimizeImageUrl } from '../../lib/formatters'
@@ -99,6 +99,15 @@ const currentPage = ref(0)
 const groupCount = computed(() => (props.tx as any)._groupCount || 1)
 const groupTxs = computed<Transaction[]>(() => (props.tx as any)._groupTxs || [props.tx])
 const currentTx = computed(() => groupTxs.value[currentPage.value] || props.tx)
+
+// Live updates prepend newer transactions to a group that stays mounted (see
+// itemKey in TransactionList). Keep a paged-back view on the same transaction.
+watch(groupTxs, (next, prev) => {
+  if (currentPage.value === 0) return
+  const shown = prev[currentPage.value]
+  const index = shown ? next.findIndex(t => t.transactionHash === shown.transactionHash) : -1
+  currentPage.value = index >= 0 ? index : 0
+})
 
 watchEffect(() => {
   const addrs = [props.tx.from, props.tx.to].filter(Boolean)

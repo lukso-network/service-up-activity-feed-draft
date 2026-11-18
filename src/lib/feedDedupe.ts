@@ -187,7 +187,7 @@ function inferWrapperAssetAddress(
 
   const assetArgAddresses = Array.from(new Set(
     (entry.assetArgs ?? [])
-      .map(({ asset }) => normalizeAddress(asset.id))
+      .map((arg) => normalizeAddress(arg?.asset?.id))
       .filter((address): address is string => !!address),
   ))
   if (assetArgAddresses.length === 1) return assetArgAddresses[0]

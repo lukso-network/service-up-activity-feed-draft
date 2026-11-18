@@ -1,14 +1,14 @@
 import { inject, computed, reactive, watch } from 'vue'
-import { ADDRESS_RESOLUTION_KEY, type AddressResolutionContext } from '@lukso/activity-sdk/vue'
+import { ADDRESS_RESOLUTION_KEY } from '../lib/addressResolutionContext'
 import type { AddressIdentity } from '../lib/types'
 import { fetchProfileTags, fetchAssetTokenIdFormats } from '../lib/api'
 
 /**
- * Thin wrapper around the SDK's address resolution inject.
+ * Thin wrapper around the address resolution inject.
  *
- * The SDK's useTransactionList() provides address resolution via Vue provide/inject.
- * This composable injects that context and exposes the same getIdentity() / queueResolve()
- * API that card components already use, so they don't need changes.
+ * ActivityFeed provides address resolution via Vue provide/inject (see
+ * ADDRESS_RESOLUTION_KEY). This composable injects that context and exposes the
+ * getIdentity() / queueResolve() API that card components use.
  */
 
 // Global tags cache shared across all composable instances
@@ -81,7 +81,7 @@ async function flushTokenIdFormatBatch() {
 }
 
 export function useAddressResolver() {
-  const ctx = inject<AddressResolutionContext>(ADDRESS_RESOLUTION_KEY as any)
+  const ctx = inject(ADDRESS_RESOLUTION_KEY, undefined)
 
   // Watch for new resolved addresses and fetch their tags
   if (ctx) {
