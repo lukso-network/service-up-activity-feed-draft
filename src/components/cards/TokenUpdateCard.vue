@@ -170,6 +170,15 @@ const groupCount = computed(() => (props.tx as any)._groupCount || 1)
 const groupTxs = computed<Transaction[]>(() => (props.tx as any)._groupTxs || [props.tx])
 const currentTx = computed(() => groupTxs.value[currentPage.value] || props.tx)
 
+// Live updates prepend newer transactions to a group that stays mounted (see
+// itemKey in TransactionList). Keep a paged-back view on the same transaction.
+watch(groupTxs, (next, prev) => {
+  if (currentPage.value === 0) return
+  const shown = prev[currentPage.value]
+  const index = shown ? next.findIndex(t => t.transactionHash === shown.transactionHash) : -1
+  currentPage.value = index >= 0 ? index : 0
+})
+
 function toggleIfBackground(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (target.closest('a, button, lukso-username, lukso-profile, input, select')) return
@@ -281,8 +290,18 @@ const videoUrl = computed(() => {
   return ''
 })
 
-// Check if the "image" is actually a video
-watch([nftImageUrl, collectionIdentity], async () => {
+// Check if the "image" is actually a video. A grouped card stays mounted when a
+// live update makes a newer transaction its representative (see itemKey in
+// TransactionList), so detection starts over for it and late results of an
+// earlier run are dropped.
+let detectionRun = 0
+let detectedForTx = props.tx.transactionHash
+watch([nftImageUrl, collectionIdentity, () => props.tx.transactionHash], async () => {
+  const run = ++detectionRun
+  if (detectedForTx !== props.tx.transactionHash) {
+    detectedForTx = props.tx.transactionHash
+    detectedVideoUrl.value = ''
+  }
   if (detectedVideoUrl.value) return
   // Check resolve API assets for fileType
   const identity = collectionIdentity.value
@@ -303,6 +322,7 @@ watch([nftImageUrl, collectionIdentity], async () => {
           ? `https://api.universalprofile.cloud/ipfs/${img.url.slice(7)}`
           : img.url
         const type = await detectMediaType(url)
+        if (run !== detectionRun) return
         if (type === 'video') {
           detectedVideoUrl.value = stripQueryParams(url)
           return
@@ -313,6 +333,7 @@ watch([nftImageUrl, collectionIdentity], async () => {
   // HEAD request on the image URL as fallback
   if (nftImageUrl.value) {
     const type = await detectMediaType(nftImageUrl.value)
+    if (run !== detectionRun) return
     if (type === 'video') {
       detectedVideoUrl.value = stripQueryParams(nftImageUrl.value)
     }

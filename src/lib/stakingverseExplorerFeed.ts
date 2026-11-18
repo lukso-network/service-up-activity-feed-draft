@@ -47,7 +47,8 @@ export async function fetchStakingverseDepositEntries(
   lowerBlock?: number,
   lowerTransactionIndex?: number,
   lowerLogIndex?: number,
-): Promise<FeedEntry[]> {
+  options: DepositFetchOptions = {},
+): Promise<FeedEntry[] | null> {
   if (!profileId && beforeBlock == null && lowerBlock == null) return []
 
   const endpoint = profileId
@@ -55,7 +56,13 @@ export async function fetchStakingverseDepositEntries(
     : `${EXPLORER_API_BASE}/addresses/${STAKINGVERSE_VAULT}/transactions?filter=to`
 
   try {
-    const explorerTxs = await fetchExplorerTransactions(endpoint, lowerBlock, lowerTransactionIndex, lowerLogIndex)
+    const explorerTxs = await fetchExplorerTransactions(
+      endpoint,
+      options.reuseFetchedAfterMs ?? Number.POSITIVE_INFINITY,
+      lowerBlock,
+      lowerTransactionIndex,
+      lowerLogIndex,
+    )
     return explorerTxs
       .filter((tx) => isDirectStakingverseDeposit(tx, profileId))
       .filter((tx) => isBeforeCursor(tx, beforeBlock, beforeTransactionIndex, beforeLogIndex))
@@ -63,13 +70,53 @@ export async function fetchStakingverseDepositEntries(
       .slice(0, limit)
       .map(explorerTxToFeedEntry)
   } catch (error) {
+    // The feed works without the supplement; callers only learn it is missing.
     console.warn('[stakingverseExplorerFeed] fetch failed:', error)
-    return []
+    return null
   }
+}
+
+export interface DepositFetchOptions {
+  /**
+   * Reuse a recent explorer response only if it was requested at or after this
+   * time (ms). A range that ended in the past can be served from a response
+   * requested after it ended; an open-ended range ("up to now") passes
+   * Infinity and always gets a fresh first page. Default: Infinity.
+   */
+  reuseFetchedAfterMs?: number
+}
+
+// Every feed page asks for the deposits in its own block range, but the explorer
+// lists newest first, so each call starts by downloading the same newest page —
+// about 1.7 MB for the vault's list. Reusing recent responses (where the range
+// allows it, see DepositFetchOptions) makes loading several pages one download.
+const EXPLORER_RESPONSE_TTL_MS = 30_000
+const explorerResponses = new Map<string, { at: number; data: Promise<ExplorerTransactionsResponse> }>()
+
+function fetchExplorerPage(url: string, reuseFetchedAfterMs: number): Promise<ExplorerTransactionsResponse> {
+  const now = Date.now()
+  for (const [key, cached] of explorerResponses) {
+    if (now - cached.at > EXPLORER_RESPONSE_TTL_MS) explorerResponses.delete(key)
+  }
+  const cached = explorerResponses.get(url)
+  if (cached && cached.at >= reuseFetchedAfterMs) return cached.data
+
+  const data = fetch(url).then(async (res) => {
+    if (!res.ok) throw new Error(`Explorer API error: ${res.status} ${res.statusText}`)
+    return (await res.json()) as ExplorerTransactionsResponse
+  })
+  const entry = { at: now, data }
+  explorerResponses.set(url, entry)
+  // Failures are not reused.
+  data.catch(() => {
+    if (explorerResponses.get(url) === entry) explorerResponses.delete(url)
+  })
+  return data
 }
 
 async function fetchExplorerTransactions(
   endpoint: string,
+  reuseFetchedAfterMs: number,
   lowerBlock?: number,
   lowerTransactionIndex?: number,
   lowerLogIndex?: number,
@@ -78,10 +125,9 @@ async function fetchExplorerTransactions(
   let url = new URL(endpoint)
 
   for (let page = 0; page < MAX_EXPLORER_PAGES; page++) {
-    const res = await fetch(url.toString())
-    if (!res.ok) throw new Error(`Explorer API error: ${res.status} ${res.statusText}`)
-
-    const data = (await res.json()) as ExplorerTransactionsResponse
+    // Only the newest page gains new rows; older pages (addressed by their
+    // page params) can always be reused while they are fresh.
+    const data = await fetchExplorerPage(url.toString(), page === 0 ? reuseFetchedAfterMs : 0)
     const items = data.items ?? []
     transactions.push(...items)
 

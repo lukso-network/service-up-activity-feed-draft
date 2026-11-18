@@ -1,75 +1,71 @@
 import type { FeedEntry } from './feedTypes'
 import { feedApiUrl } from './chains'
+import { JSONbigString } from './jsonBigint'
+import {
+  buildGlobalFeedRequest,
+  buildGlobalFeedAfterRequest,
+  buildProfileFeedRequest,
+  serializeGraphqlRequest,
+  withCacheWindow,
+  type GraphqlRequest,
+} from './feedQuery'
+import { takePrefetchedResponse, type PrefetchedResponse } from '../prefetch/feedPrefetchShared'
 
-const FEED_FIELDS = `
-  id
-  blockNumber
-  transactionHash
-  transactionIndex
-  logIndex
-  address
-  eventType
-  dataKey
-  decoded
-  timestamp
-  profileArgs(limit: 3) {
-    profile {
-      id
-      name
-      profileImages(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
-        src
-        width
-        height
-      }
-    }
-  }
-  assetArgs(limit: 3) {
-    asset {
-      id
-      name
-      lsp4TokenName
-      lsp4TokenSymbol
-      lsp4TokenType
-      decimals
-      owner_id
-      icons(order_by: {width: desc}, where: { error: { _is_null: true } }, limit: 1) {
-        src
-        width
-        height
-      }
-      images(order_by: {width: desc}, where: { index: { _eq: 0 }, error: { _is_null: true } }, limit: 1) {
-        src
-        width
-        height
-      }
-      lsp4Creators(limit: 1) {
-        profile_id
-      }
-    }
-  }
-`
-
-async function graphqlQuery<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  chainId?: number,
-): Promise<T> {
-  const res = await fetch(feedApiUrl(chainId), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  })
-  if (!res.ok) {
-    throw new Error(`Feed API error: ${res.status} ${res.statusText}`)
-  }
-  const json = await res.json()
+function readGraphqlData<T>(json: any): T {
   if (json.errors?.length) {
     throw new Error(`Feed API GraphQL error: ${json.errors[0].message}`)
   }
   return json.data
 }
 
-import { JSONbigString } from '@lukso/transaction-decoder'
+/** Data from the index.html prefetch, or undefined when it can't be used as-is. */
+function readPrefetchedData<T>(prefetched: PrefetchedResponse | null): T | undefined {
+  if (!prefetched?.ok) return undefined
+  try {
+    const json = JSON.parse(prefetched.text)
+    if (json.errors?.length || !json.data) return undefined
+    return json.data
+  } catch {
+    return undefined
+  }
+}
+
+export interface FeedRequestOptions {
+  /**
+   * Bypass the indexer's response cache at this granularity (see
+   * withCacheWindow). For polls; page loads use the shared cached response.
+   */
+  cacheWindowMs?: number
+}
+
+async function graphqlQuery<T>(
+  request: GraphqlRequest,
+  chainId?: number,
+  options: FeedRequestOptions = {},
+): Promise<T> {
+  const url = feedApiUrl(chainId)
+  const body = serializeGraphqlRequest(
+    options.cacheWindowMs ? withCacheWindow(request, options.cacheWindowMs) : request,
+  )
+
+  // The newest page may already be in flight from index.html. A failed or
+  // unusable prefetch falls through to a regular request.
+  const prefetched = takePrefetchedResponse(url, body)
+  if (prefetched) {
+    const data = readPrefetchedData<T>(await prefetched)
+    if (data) return data
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+  if (!res.ok) {
+    throw new Error(`Feed API error: ${res.status} ${res.statusText}`)
+  }
+  return readGraphqlData<T>(await res.json())
+}
 
 // The indexer occasionally emits unescaped control bytes (raw \n, \t, etc.) inside
 // JSON string literals — see e.g. profile bios with newlines. JSON.parse rejects
@@ -119,36 +115,18 @@ function parseDecoded(value: unknown, entryId?: string): unknown {
   }
 }
 
+/** Relationship lists without null or malformed elements. */
+export function cleanRelationshipArgs<T>(args: unknown): T[] {
+  return Array.isArray(args) ? args.filter((arg) => !!arg && typeof arg === 'object') : []
+}
+
 function parseFeedEntries(raw: any[]): FeedEntry[] {
   return raw.map((entry) => ({
     ...entry,
     decoded: parseDecoded(entry.decoded, entry.id),
-    profileArgs: entry.profileArgs || [],
-    assetArgs: entry.assetArgs || [],
+    profileArgs: cleanRelationshipArgs(entry.profileArgs),
+    assetArgs: cleanRelationshipArgs(entry.assetArgs),
   }))
-}
-
-/**
- * Build the global feed's cursor condition for the (blockNumber, transactionIndex,
- * logIndex) tuple. The full tuple is required because logIndex is tx-local per the
- * schema docstring — two txs in the same block can collide on logIndex and silently
- * skip rows on page boundaries. Returns a fragment to splice into a _and array, or
- * empty string. Profile feeds pass the same tuple to `profile_feed` instead, which
- * applies the comparison inside the indexed function.
- */
-function buildCursorCondition(
-  beforeBlock?: number,
-  beforeTransactionIndex?: number,
-  beforeLogIndex?: number,
-): string {
-  if (beforeBlock == null) return ''
-  const txIdx = beforeTransactionIndex ?? 0
-  const logIdx = beforeLogIndex ?? 0
-  return `, { _or: [
-    { blockNumber: { _lt: ${beforeBlock} } },
-    { blockNumber: { _eq: ${beforeBlock} }, transactionIndex: { _lt: ${txIdx} } },
-    { blockNumber: { _eq: ${beforeBlock} }, transactionIndex: { _eq: ${txIdx} }, logIndex: { _lt: ${logIdx} } }
-  ] }`
 }
 
 /**
@@ -159,9 +137,6 @@ function buildCursorCondition(
  * by (blockNumber, transactionIndex, logIndex) descending. This replaces the old
  * four-arm `_or` where-clause, whose `decoded _cast String _ilike` arm did an
  * unindexed substring scan over every stringified JSON payload.
- *
- * All five function args are nullable; omitting the cursor returns the newest page.
- * `p_limit` is clamped server-side.
  */
 export async function fetchFeed(
   profileId: string,
@@ -170,41 +145,12 @@ export async function fetchFeed(
   beforeTransactionIndex?: number,
   beforeLogIndex?: number,
   chainId?: number,
+  options?: FeedRequestOptions,
 ): Promise<FeedEntry[]> {
-  const query = `
-    query ProfileFeed(
-      $profileId: String!
-      $limit: Int!
-      $beforeBlock: Int
-      $beforeTransactionIndex: Int
-      $beforeLogIndex: Int
-    ) {
-      profile_feed(
-        args: {
-          p_profile: $profileId
-          p_limit: $limit
-          p_before_block: $beforeBlock
-          p_before_tx: $beforeTransactionIndex
-          p_before_log: $beforeLogIndex
-        }
-      ) {
-        ${FEED_FIELDS}
-      }
-    }
-  `
   const data = await graphqlQuery<{ profile_feed: any[] }>(
-    query,
-    {
-      profileId: profileId.toLowerCase(),
-      limit,
-      // Null cursor args mean "start at the newest row". The tx/log components only
-      // carry meaning alongside a block, so they stay null on the first page and
-      // default to 0 afterwards — matching buildCursorCondition's global-feed tuple.
-      beforeBlock: beforeBlock ?? null,
-      beforeTransactionIndex: beforeBlock == null ? null : beforeTransactionIndex ?? 0,
-      beforeLogIndex: beforeBlock == null ? null : beforeLogIndex ?? 0,
-    },
+    buildProfileFeedRequest(profileId, limit, beforeBlock, beforeTransactionIndex, beforeLogIndex),
     chainId,
+    options,
   )
   return parseFeedEntries(data.profile_feed)
 }
@@ -218,26 +164,31 @@ export async function fetchGlobalFeed(
   beforeTransactionIndex?: number,
   beforeLogIndex?: number,
   chainId?: number,
+  options?: FeedRequestOptions,
 ): Promise<FeedEntry[]> {
-  const cursorCondition = buildCursorCondition(beforeBlock, beforeTransactionIndex, beforeLogIndex)
+  const data = await graphqlQuery<{ Feed: any[] }>(
+    buildGlobalFeedRequest(limit, beforeBlock, beforeTransactionIndex, beforeLogIndex),
+    chainId,
+    options,
+  )
+  return parseFeedEntries(data.Feed)
+}
 
-  // For global feed without cursor, skip the where clause entirely
-  const whereClause = cursorCondition
-    ? `where: { _and: [${cursorCondition.replace(/^,\s*/, '')}] },`
-    : ''
-
-  const query = `
-    query GlobalFeed {
-      Feed(
-        limit: ${limit},
-        ${whereClause}
-        order_by: [{ blockNumber: desc }, { transactionIndex: desc }, { logIndex: desc }]
-      ) {
-        ${FEED_FIELDS}
-      }
-    }
-  `
-  const data = await graphqlQuery<{ Feed: any[] }>(query, {}, chainId)
+/**
+ * Fetch global rows strictly newer than the given position, newest first (at
+ * most `limit`). Used for live polling.
+ */
+export async function fetchGlobalFeedAfter(
+  limit: number,
+  after: { blockNumber: number; transactionIndex?: number; logIndex: number },
+  chainId?: number,
+  options?: FeedRequestOptions,
+): Promise<FeedEntry[]> {
+  const data = await graphqlQuery<{ Feed: any[] }>(
+    buildGlobalFeedAfterRequest(limit, after.blockNumber, after.transactionIndex ?? 0, after.logIndex),
+    chainId,
+    options,
+  )
   return parseFeedEntries(data.Feed)
 }
 
@@ -251,8 +202,9 @@ export function extractEnrichedIdentities(entries: FeedEntry[]): Record<string, 
 
   for (const entry of entries) {
     // Extract profile identities from profileArgs
-    if (entry.profileArgs) {
-      for (const { profile } of entry.profileArgs) {
+    if (Array.isArray(entry.profileArgs)) {
+      for (const arg of entry.profileArgs) {
+        const profile = arg?.profile
         if (!profile?.id) continue
         const addr = profile.id.toLowerCase()
         if (identities[addr]) continue // first occurrence wins
@@ -266,8 +218,9 @@ export function extractEnrichedIdentities(entries: FeedEntry[]): Record<string, 
     }
 
     // Extract asset identities from assetArgs
-    if (entry.assetArgs) {
-      for (const { asset } of entry.assetArgs) {
+    if (Array.isArray(entry.assetArgs)) {
+      for (const arg of entry.assetArgs) {
+        const asset = arg?.asset
         if (!asset?.id) continue
         const addr = asset.id.toLowerCase()
         if (identities[addr]) continue
